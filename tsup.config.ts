@@ -12,4 +12,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   external: ["electron", "uiohook-napi"],
+  noExternal: ["@ai-sdk/gateway", "ai", /^@ai-sdk\/.*/],
 });

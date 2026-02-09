@@ -22,7 +22,15 @@ extraResources:
     filter:
       - "**/*"
   - from: resources/overlay.html
-    to: overlay.html
+    to: resources/overlay.html
+  - from: resources/ghosty-talking.png
+    to: resources/ghosty-talking.png
+  - from: .env
+    to: .env
+  - from: public/assets
+    to: public/assets
+    filter:
+      - "**/*"
 
 mac:
   icon: public/assets/ghosttype.icns

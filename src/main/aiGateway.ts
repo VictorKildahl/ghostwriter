@@ -27,11 +27,8 @@ export async function cleanupGhostedText(
 
   console.log("[ghosttype] raw transcription →", text);
 
-  const baseURL =
-    process.env.AI_GATEWAY_BASE_URL ?? process.env.VERCEL_AI_BASE_URL;
   const gateway = createGateway({
     apiKey,
-    baseURL,
   });
 
   const selectedModel = model || DEFAULT_MODEL;
