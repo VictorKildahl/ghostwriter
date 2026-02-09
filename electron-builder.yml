@@ -1,0 +1,46 @@
+appId: com.ghosttype.app
+productName: GhostType
+copyright: Copyright © 2026 GhostType
+
+directories:
+  output: release
+
+files:
+  - dist/**/*
+  - out/**/*
+  - resources/**/*
+  - public/assets/**/*
+  - package.json
+
+extraResources:
+  - from: resources/whisper
+    to: whisper
+    filter:
+      - "**/*"
+  - from: resources/ffmpeg
+    to: ffmpeg
+    filter:
+      - "**/*"
+  - from: resources/overlay.html
+    to: overlay.html
+
+mac:
+  icon: public/assets/ghosttype.icns
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.plist
+
+dmg:
+  title: GhostType
+  artifactName: GhostType-${version}-${arch}.dmg
+
+asar: true
+
+# Rebuild native modules for the correct Electron version
+npmRebuild: true
