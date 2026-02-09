@@ -9,9 +9,14 @@ import type {
 } from "@/types/ghosttype";
 import { AI_MODEL_OPTIONS } from "@/types/models";
 import { useEffect, useState } from "react";
+import { LoginView } from "./login-view";
+import { SignUpView } from "./signup-view";
+import { useAuth } from "./use-auth";
+import { useGhostStats } from "./use-ghost-stats";
 
 type SettingsError = string | null;
-type View = "home" | "settings";
+type View = "home" | "stats" | "settings";
+type AuthView = "login" | "signup";
 
 type GhostLogEntry = {
   timestamp: Date;
@@ -59,9 +64,13 @@ function groupByDate(entries: GhostLogEntry[]) {
 function Sidebar({
   currentView,
   onNavigate,
+  userEmail,
+  onLogout,
 }: {
   currentView: View;
   onNavigate: (view: View) => void;
+  userEmail?: string;
+  onLogout: () => void;
 }) {
   return (
     <aside className="flex w-44 shrink-0 flex-col border-r border-border bg-sidebar">
@@ -98,10 +107,34 @@ function Sidebar({
           </svg>
           Home
         </button>
+        <button
+          onClick={() => onNavigate("stats")}
+          className={cn(
+            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition",
+            currentView === "stats"
+              ? "bg-white text-ink shadow-xs"
+              : "text-muted hover:bg-white/60 hover:text-ink",
+          )}
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.8}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
+            />
+          </svg>
+          Stats
+        </button>
       </nav>
 
-      {/* Bottom: Settings */}
-      <div className="px-3 pb-4">
+      {/* Bottom: Settings + User */}
+      <div className="flex flex-col gap-1 px-3 pb-4">
         <button
           onClick={() => onNavigate("settings")}
           className={cn(
@@ -131,6 +164,37 @@ function Sidebar({
           </svg>
           Settings
         </button>
+
+        {/* User + Logout */}
+        <div className="mt-2 border-t border-border pt-3">
+          {userEmail && (
+            <p
+              className="mb-1.5 truncate px-3 text-[11px] text-muted"
+              title={userEmail}
+            >
+              {userEmail}
+            </p>
+          )}
+          <button
+            onClick={onLogout}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted transition hover:bg-white/60 hover:text-ink"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.8}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3h-9m9 0l-3-3m3 3l-3 3"
+              />
+            </svg>
+            Log out
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -141,15 +205,24 @@ function HomeView({
   state,
   settings,
   log,
+  stats,
 }: {
   state: GhostingState;
   settings: GhosttypeSettings | null;
   log: GhostLogEntry[];
+  stats: {
+    totalWords: number;
+    currentStreak: number;
+  } | null;
 }) {
-  const wordCount = log.reduce(
+  const sessionWordCount = log.reduce(
     (sum, entry) => sum + entry.text.split(/\s+/).filter(Boolean).length,
     0,
   );
+
+  // Use Convex stats if available, fall back to local session count
+  const totalWords = stats ? stats.totalWords : sessionWordCount;
+  const streak = stats ? stats.currentStreak : log.length > 0 ? 1 : 0;
 
   const groups = groupByDate(log);
 
@@ -163,13 +236,13 @@ function HomeView({
             <span className="flex items-center gap-1.5">
               <span>🔥</span>
               <span className="font-medium text-ink">
-                {log.length > 0 ? "1 day" : "0 days"}
+                {streak === 1 ? "1 day" : `${streak} days`}
               </span>
             </span>
             <span className="text-border">|</span>
             <span className="flex items-center gap-1.5">
               <span>🚀</span>
-              <span className="font-medium text-ink">{wordCount} words</span>
+              <span className="font-medium text-ink">{totalWords} words</span>
             </span>
           </div>
         </div>
@@ -227,6 +300,145 @@ function HomeView({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Stats View ─── */
+function StatsView({
+  stats,
+}: {
+  stats: {
+    totalWords: number;
+    totalSessions: number;
+    totalDaysActive: number;
+    currentStreak: number;
+    longestStreak: number;
+    recentDays: { date: string; wordCount: number; sessionCount: number }[];
+  } | null;
+}) {
+  if (!stats) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <p className="text-sm text-muted">Loading stats…</p>
+      </div>
+    );
+  }
+
+  const maxWords = Math.max(...stats.recentDays.map((d) => d.wordCount), 1);
+
+  // Build full 30-day range for the chart
+  const dayMap = new Map(stats.recentDays.map((d) => [d.date, d]));
+  const chartDays: { date: string; wordCount: number; sessionCount: number }[] =
+    [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    chartDays.push(
+      dayMap.get(dateStr) ?? { date: dateStr, wordCount: 0, sessionCount: 0 },
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-y-auto">
+      <header className="border-b border-border px-8 pt-8 pb-6">
+        <h1 className="text-2xl font-semibold text-ink">Stats</h1>
+        <p className="mt-1 text-sm text-muted">
+          Your ghosting activity at a glance.
+        </p>
+      </header>
+
+      <div className="flex flex-col gap-6 px-8 py-6">
+        {/* Stat cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="flex flex-col items-center rounded-xl border border-border bg-white p-5">
+            <span className="text-2xl">🚀</span>
+            <span className="mt-2 text-2xl font-bold text-ink">
+              {stats.totalWords.toLocaleString()}
+            </span>
+            <span className="text-xs text-muted">Words spoken</span>
+          </div>
+          <div className="flex flex-col items-center rounded-xl border border-border bg-white p-5">
+            <span className="text-2xl">🔥</span>
+            <span className="mt-2 text-2xl font-bold text-ink">
+              {stats.currentStreak}
+            </span>
+            <span className="text-xs text-muted">Day streak</span>
+          </div>
+          <div className="flex flex-col items-center rounded-xl border border-border bg-white p-5">
+            <span className="text-2xl">⚡</span>
+            <span className="mt-2 text-2xl font-bold text-ink">
+              {stats.totalSessions}
+            </span>
+            <span className="text-xs text-muted">Total sessions</span>
+          </div>
+        </div>
+
+        {/* Secondary stat cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col items-center rounded-xl border border-border bg-white p-5">
+            <span className="text-2xl">🏆</span>
+            <span className="mt-2 text-2xl font-bold text-ink">
+              {stats.longestStreak}
+            </span>
+            <span className="text-xs text-muted">Longest streak</span>
+          </div>
+          <div className="flex flex-col items-center rounded-xl border border-border bg-white p-5">
+            <span className="text-2xl">📅</span>
+            <span className="mt-2 text-2xl font-bold text-ink">
+              {stats.totalDaysActive}
+            </span>
+            <span className="text-xs text-muted">Days active</span>
+          </div>
+        </div>
+
+        {/* Activity chart - last 30 days */}
+        <div className="rounded-xl border border-border bg-white p-5">
+          <p className="mb-4 text-sm font-medium text-ink">Last 30 days</p>
+          <div className="flex items-end gap-1" style={{ height: 120 }}>
+            {chartDays.map((day) => {
+              const height =
+                day.wordCount > 0
+                  ? Math.max(4, (day.wordCount / maxWords) * 100)
+                  : 2;
+              const dateObj = new Date(day.date + "T00:00:00");
+              const label = dateObj.toLocaleDateString([], {
+                month: "short",
+                day: "numeric",
+              });
+              return (
+                <div
+                  key={day.date}
+                  className="group relative flex flex-1 flex-col items-center justify-end"
+                  style={{ height: "100%" }}
+                >
+                  {/* Tooltip */}
+                  <div className="pointer-events-none absolute -top-8 z-10 hidden rounded bg-ink px-2 py-1 text-xs text-white shadow-sm group-hover:block whitespace-nowrap">
+                    {label}: {day.wordCount} words
+                  </div>
+                  <div
+                    className={cn(
+                      "w-full min-w-0.75 rounded-t transition-all",
+                      day.wordCount > 0 ? "bg-accent" : "bg-border",
+                    )}
+                    style={{ height: `${height}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex justify-between text-[10px] text-muted">
+            <span>
+              {new Date(chartDays[0].date + "T00:00:00").toLocaleDateString(
+                [],
+                { month: "short", day: "numeric" },
+              )}
+            </span>
+            <span>Today</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -429,6 +641,16 @@ function SettingsView({
 /* ─── Main Page ─── */
 export default function Page() {
   const [view, setView] = useState<View>("home");
+  const [authView, setAuthView] = useState<AuthView>("login");
+  const {
+    auth,
+    loading: authLoading,
+    isAuthenticated,
+    signUp,
+    login,
+    logout,
+  } = useAuth();
+
   const [state, setState] = useState<GhostingState>({
     phase: "idle",
     lastGhostedText: "",
@@ -442,6 +664,8 @@ export default function Page() {
   const [capturePreview, setCapturePreview] = useState("Press new shortcut...");
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [ghostLog, setGhostLog] = useState<GhostLogEntry[]>([]);
+
+  const { stats } = useGhostStats(auth?.userId ?? null);
 
   useEffect(() => {
     if (!window.ghosttype) {
@@ -533,11 +757,50 @@ export default function Page() {
     setCapturePreview("Press new shortcut...");
   }
 
+  // ── Auth loading screen ──
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <p className="text-sm text-muted">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Auth gate ──
+  if (!isAuthenticated) {
+    return authView === "login" ? (
+      <LoginView
+        onLogin={login}
+        onSwitchToSignUp={() => setAuthView("signup")}
+      />
+    ) : (
+      <SignUpView
+        onSignUp={signUp}
+        onSwitchToLogin={() => setAuthView("login")}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white">
-      <Sidebar currentView={view} onNavigate={setView} />
+      <Sidebar
+        currentView={view}
+        onNavigate={setView}
+        userEmail={auth?.email}
+        onLogout={logout}
+      />
       {view === "home" ? (
-        <HomeView state={state} settings={settings} log={ghostLog} />
+        <HomeView
+          state={state}
+          settings={settings}
+          log={ghostLog}
+          stats={stats}
+        />
+      ) : view === "stats" ? (
+        <StatsView stats={stats} />
       ) : (
         <SettingsView
           settings={settings}

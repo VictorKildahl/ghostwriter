@@ -4,6 +4,7 @@ import type {
   GhostingState,
   GhosttypeSettings,
   GhosttypeSettingsUpdate,
+  SessionEvent,
 } from "../../types/ghosttype";
 
 const api = {
@@ -26,6 +27,8 @@ const api = {
     ) as Promise<GhosttypeSettings>,
   stopShortcutCapture: () =>
     ipcRenderer.invoke("ghosting:stop-shortcut-capture"),
+  getDeviceId: () =>
+    ipcRenderer.invoke("ghosting:get-device-id") as Promise<string>,
   onGhostingState: (callback: (state: GhostingState) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
@@ -63,6 +66,20 @@ const api = {
 
     return () => {
       ipcRenderer.removeListener("ghosting:shortcut-preview", listener);
+    };
+  },
+  onSessionComplete: (callback: (session: SessionEvent) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      session: SessionEvent,
+    ) => {
+      callback(session);
+    };
+
+    ipcRenderer.on("ghosting:session-complete", listener);
+
+    return () => {
+      ipcRenderer.removeListener("ghosting:session-complete", listener);
     };
   },
 };

@@ -50,6 +50,13 @@ export type GhosttypeSettingsUpdate = {
   aiModel?: string;
 };
 
+export type SessionEvent = {
+  wordCount: number;
+  rawLength: number;
+  cleanedLength: number;
+  timestamp: number;
+};
+
 export type GhostTypeAPI = {
   getState: () => Promise<GhostingState>;
   startGhosting: () => Promise<void>;
@@ -61,9 +68,11 @@ export type GhostTypeAPI = {
   getAudioDevices: () => Promise<AudioDevice[]>;
   startShortcutCapture: () => Promise<GhosttypeSettings>;
   stopShortcutCapture: () => Promise<void>;
+  getDeviceId: () => Promise<string>;
   onGhostingState: (callback: (state: GhostingState) => void) => () => void;
   onSettings: (callback: (settings: GhosttypeSettings) => void) => () => void;
   onShortcutPreview: (callback: (preview: string) => void) => () => void;
+  onSessionComplete: (callback: (session: SessionEvent) => void) => () => void;
 };
 
 declare global {

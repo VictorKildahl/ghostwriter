@@ -31,6 +31,11 @@ export class GhostingController {
   constructor(
     private readonly onState: (state: GhostingState) => void,
     private readonly getSettings: () => GhosttypeSettings,
+    private readonly onSessionComplete?: (session: {
+      wordCount: number;
+      rawLength: number;
+      cleanedLength: number;
+    }) => void,
   ) {}
 
   getState() {
@@ -93,6 +98,14 @@ export class GhostingController {
 
       this.setState({ lastGhostedText: finalText, phase: "idle" });
       await applyGhostedText(finalText, { autoPaste });
+
+      // Notify about the completed session for stats tracking
+      const wordCount = finalText.split(/\s+/).filter(Boolean).length;
+      this.onSessionComplete?.({
+        wordCount,
+        rawLength: rawText.length,
+        cleanedLength: finalText.length,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       this.setState({ phase: "error", error: message });

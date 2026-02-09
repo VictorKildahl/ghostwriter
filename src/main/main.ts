@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { AI_MODEL_OPTIONS } from "../../types/models";
 import { listAudioDevices } from "./audio";
+import { getDeviceId } from "./deviceId";
 import { GhostingController } from "./ghosting";
 import { registerGhostingHotkey } from "./hotkey";
 import {
@@ -318,6 +319,7 @@ function setupIpc(controller: GhostingController) {
     isCapturingShortcut = false;
   });
   ipcMain.handle("ghosting:get-audio-devices", () => listAudioDevices());
+  ipcMain.handle("ghosting:get-device-id", () => getDeviceId());
 
   ipcMain.on("overlay:set-ignore-mouse", (_event, ignore: boolean) => {
     if (!overlayWindow) return;
@@ -414,6 +416,12 @@ app.whenReady().then(async () => {
       }
     },
     () => settings ?? getDefaultSettings(),
+    (session) => {
+      mainWindow?.webContents.send("ghosting:session-complete", {
+        ...session,
+        timestamp: Date.now(),
+      });
+    },
   );
 
   setupIpc(controller);
