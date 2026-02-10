@@ -20,6 +20,7 @@ export function HomeView({
   localTranscripts,
   userName,
   onNavigateToStats,
+  onDeleteEntry,
 }: {
   stats: {
     totalWords: number;
@@ -29,6 +30,7 @@ export function HomeView({
   localTranscripts: LocalTranscript[];
   userName?: string;
   onNavigateToStats?: () => void;
+  onDeleteEntry?: (timestamp: number) => void;
 }) {
   const [state, setState] = useState<GhostingState>({
     phase: "idle",
@@ -126,6 +128,10 @@ export function HomeView({
         if (!group) return prev;
         const entryToDelete = group.entries[entryIndex];
         if (!entryToDelete) return prev;
+
+        // Persist the deletion to local file and Convex
+        onDeleteEntry?.(entryToDelete.timestamp.getTime());
+
         return prev.filter(
           (e) =>
             !(
@@ -135,7 +141,7 @@ export function HomeView({
         );
       });
     },
-    [],
+    [onDeleteEntry],
   );
 
   const sessionWordCount = ghostLog.reduce(
@@ -266,7 +272,7 @@ export function HomeView({
                   return (
                     <div
                       key={entryKey}
-                      className="group flex items-start gap-6 px-5 py-4 text-sm"
+                      className="group flex items-center gap-6 px-5 py-3 text-sm transition-colors hover:bg-sidebar"
                     >
                       <span className="w-20 shrink-0 text-muted">
                         {formatTime(entry.timestamp)}

@@ -93,6 +93,7 @@ export type GhostTypeAPI = {
   stopShortcutCapture: () => Promise<void>;
   getDeviceId: () => Promise<string>;
   getLocalTranscripts: () => Promise<LocalTranscript[]>;
+  deleteLocalTranscript: (timestamp: number) => Promise<void>;
   onGhostingState: (callback: (state: GhostingState) => void) => () => void;
   onSettings: (callback: (settings: GhosttypeSettings) => void) => () => void;
   onShortcutPreview: (callback: (preview: string) => void) => () => void;

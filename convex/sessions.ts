@@ -76,3 +76,47 @@ export const listRecent = query({
     return sessions;
   },
 });
+
+export const deleteByTimestamp = mutation({
+  args: {
+    userId: v.id("users"),
+    timestamp: v.number(),
+  },
+  handler: async (ctx, { userId, timestamp }) => {
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const match = sessions.find((s) => s.timestamp === timestamp);
+    if (!match) return;
+
+    await ctx.db.delete(match._id);
+
+    // Update daily stats
+    const dailyStat = await ctx.db
+      .query("dailyStats")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).eq("date", match.date),
+      )
+      .first();
+
+    if (dailyStat) {
+      const newWordCount = dailyStat.wordCount - match.wordCount;
+      const newSessionCount = dailyStat.sessionCount - 1;
+
+      if (newSessionCount <= 0) {
+        await ctx.db.delete(dailyStat._id);
+      } else {
+        await ctx.db.patch(dailyStat._id, {
+          wordCount: Math.max(0, newWordCount),
+          sessionCount: newSessionCount,
+          totalDurationMs: Math.max(
+            0,
+            (dailyStat.totalDurationMs ?? 0) - (match.durationMs ?? 0),
+          ),
+        });
+      }
+    }
+  },
+});

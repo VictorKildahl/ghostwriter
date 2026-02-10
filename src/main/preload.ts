@@ -53,6 +53,11 @@ const api = {
     ipcRenderer.invoke("ghosting:get-local-transcripts") as Promise<
       LocalTranscript[]
     >,
+  deleteLocalTranscript: (timestamp: number) =>
+    ipcRenderer.invoke(
+      "ghosting:delete-local-transcript",
+      timestamp,
+    ) as Promise<void>,
   onGhostingState: (callback: (state: GhostingState) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,

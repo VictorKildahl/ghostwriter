@@ -32,7 +32,9 @@ export default function Page() {
     logout,
   } = useAuth();
 
-  const { stats, localTranscripts } = useGhostStats(auth?.userId ?? null);
+  const { stats, localTranscripts, deleteTranscript } = useGhostStats(
+    auth?.userId ?? null,
+  );
 
   // Keep Convex user record in sync with local preferences
   usePreferencesSync(auth?.userId ?? null);
@@ -120,6 +122,7 @@ export default function Page() {
               localTranscripts={localTranscripts}
               userName={auth?.name}
               onNavigateToStats={() => setView("stats")}
+              onDeleteEntry={deleteTranscript}
             />
           )}
           {view === "stats" && <StatsView stats={stats} />}

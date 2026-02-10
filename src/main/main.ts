@@ -27,7 +27,11 @@ import {
   type GhosttypeSettings,
   type GhosttypeSettingsUpdate,
 } from "./settings";
-import { loadLocalTranscripts, saveLocalTranscript } from "./transcriptStore";
+import {
+  deleteLocalTranscript,
+  loadLocalTranscripts,
+  saveLocalTranscript,
+} from "./transcriptStore";
 
 function loadEnvFile() {
   const root = app.isPackaged ? process.resourcesPath : app.getAppPath();
@@ -352,6 +356,10 @@ function setupIpc(controller: GhostingController) {
   ipcMain.handle("ghosting:get-device-id", () => getDeviceId());
   ipcMain.handle("ghosting:get-local-transcripts", () =>
     loadLocalTranscripts(),
+  );
+  ipcMain.handle(
+    "ghosting:delete-local-transcript",
+    (_event, timestamp: number) => deleteLocalTranscript(timestamp),
   );
 
   ipcMain.on("overlay:set-ignore-mouse", (_event, ignore: boolean) => {

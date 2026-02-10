@@ -12,6 +12,7 @@ import type {
 
 export function useGhostStats(userId: Id<"users"> | null) {
   const recordSession = useMutation(api.sessions.record);
+  const deleteSession = useMutation(api.sessions.deleteByTimestamp);
   const [shareTranscripts, setShareTranscripts] = useState(false);
   const [localTranscripts, setLocalTranscripts] = useState<LocalTranscript[]>(
     [],
@@ -74,8 +75,29 @@ export function useGhostStats(userId: Id<"users"> | null) {
     return unsubscribe;
   }, [userId, trackSession]);
 
+  // Delete a transcript from local storage and Convex
+  const deleteTranscript = useCallback(
+    async (timestamp: number) => {
+      // Always delete from local file
+      await window.ghosttype?.deleteLocalTranscript(timestamp);
+
+      // Also delete from Convex if user is logged in
+      if (userId) {
+        await deleteSession({ userId, timestamp }).catch(() => undefined);
+      }
+
+      // Refresh local transcripts
+      window.ghosttype
+        ?.getLocalTranscripts()
+        .then(setLocalTranscripts)
+        .catch(() => undefined);
+    },
+    [userId, deleteSession],
+  );
+
   return {
     stats: stats ?? null,
     localTranscripts,
+    deleteTranscript,
   };
 }
