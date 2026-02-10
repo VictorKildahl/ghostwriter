@@ -1,5 +1,6 @@
 "use client";
 
+import { LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function AccountMenu({
@@ -44,19 +45,7 @@ export function AccountMenu({
         className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:text-ink"
         title={userEmail}
       >
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.6}
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-          />
-        </svg>
+        <User className="h-5 w-5" />
       </button>
 
       {/* Dropdown popover */}
@@ -92,19 +81,7 @@ export function AccountMenu({
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted transition hover:bg-gray-50 hover:text-ink"
             >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.8}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3h-9m9 0l-3-3m3 3l-3 3"
-                />
-              </svg>
+              <LogOut className="h-4 w-4" />
               Sign out
             </button>
           </div>
