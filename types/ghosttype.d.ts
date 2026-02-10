@@ -34,7 +34,11 @@ export type AudioDevice = {
   name: string;
 };
 
-export type WritingStyle = "formal" | "casual" | "very-casual";
+export type WritingStyle = "formal" | "casual" | "very-casual" | "excited";
+
+export type AppCategory = "personal" | "work" | "email" | "other";
+
+export type StylePreferences = Record<AppCategory, WritingStyle>;
 
 export type GhosttypeSettings = {
   autoPaste: boolean;
@@ -43,7 +47,7 @@ export type GhosttypeSettings = {
   aiCleanup: boolean;
   aiModel: string;
   shareTranscripts: boolean;
-  writingStyle: WritingStyle;
+  stylePreferences: StylePreferences;
 };
 
 export type GhosttypeSettingsUpdate = {
@@ -53,7 +57,7 @@ export type GhosttypeSettingsUpdate = {
   aiCleanup?: boolean;
   aiModel?: string;
   shareTranscripts?: boolean;
-  writingStyle?: WritingStyle;
+  stylePreferences?: Partial<StylePreferences>;
 };
 
 export type SessionEvent = {

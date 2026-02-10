@@ -5,11 +5,13 @@ import { OnboardingView } from "@/app/components/onboarding-view";
 import { SettingsView } from "@/app/components/settings-view";
 import { Sidebar, type View } from "@/app/components/sidebar";
 import { StatsView } from "@/app/components/stats-view";
+import { StyleView } from "@/app/components/style-view";
 import { LoginView } from "@/app/login-view";
 import { SignUpView } from "@/app/signup-view";
 import { useAuth } from "@/app/use-auth";
 import { useGhostStats } from "@/app/use-ghost-stats";
-import type { WritingStyle } from "@/types/ghosttype";
+import { usePreferencesSync } from "@/app/use-preferences-sync";
+import type { StylePreferences } from "@/types/ghosttype";
 import { useCallback, useState } from "react";
 
 type AuthView = "login" | "signup";
@@ -30,6 +32,9 @@ export default function Page() {
 
   const { stats, localTranscripts } = useGhostStats(auth?.userId ?? null);
 
+  // Keep Convex user record in sync with local preferences
+  usePreferencesSync(auth?.userId ?? null);
+
   // Wrap signUp so we show consent prompt after a successful registration
   const handleSignUp = useCallback(
     async (email: string, password: string, name?: string) => {
@@ -42,11 +47,11 @@ export default function Page() {
 
   // Handle the onboarding completion (consent + style)
   const handleOnboardingComplete = useCallback(
-    async (shareTranscripts: boolean, writingStyle: WritingStyle) => {
+    async (shareTranscripts: boolean, stylePreferences: StylePreferences) => {
       try {
         await window.ghosttype?.updateSettings({
           shareTranscripts,
-          writingStyle,
+          stylePreferences,
         });
       } catch {
         // Settings will remain at defaults if IPC fails
@@ -102,6 +107,7 @@ export default function Page() {
         <HomeView stats={stats} localTranscripts={localTranscripts} />
       )}
       {view === "stats" && <StatsView stats={stats} />}
+      {view === "style" && <StyleView />}
       {view === "settings" && <SettingsView />}
     </div>
   );

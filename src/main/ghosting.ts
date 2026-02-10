@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { cleanupGhostedText } from "./aiGateway";
+import { detectAppCategory, type AppCategory } from "./appCategory";
 import { startRecording, stopRecording, type RecordingSession } from "./audio";
 import { applyGhostedText } from "./paste";
 import type { GhosttypeSettings } from "./settings";
@@ -22,6 +23,7 @@ export type GhostingState = {
 export class GhostingController {
   private recordingSession: RecordingSession | null = null;
   private recordingStartTime: number | null = null;
+  private recordingAppCategory: AppCategory = "other";
   private state: GhostingState = {
     phase: "idle",
     lastGhostedText: "",
@@ -63,6 +65,7 @@ export class GhostingController {
     const session = startRecording(this.getSettings().selectedMicrophone);
     this.recordingSession = session;
     this.recordingStartTime = Date.now();
+    this.recordingAppCategory = detectAppCategory();
     this.setState({ phase: "recording", error: null });
 
     session.process.once("error", (error) => {
@@ -96,7 +99,9 @@ export class GhostingController {
       this.setState({ phase: "cleaning", lastRawText: rawText });
 
       const { autoPaste, aiCleanup, aiModel } = this.getSettings();
-      const writingStyle = this.getSettings().writingStyle;
+      const writingStyle =
+        this.getSettings().stylePreferences[this.recordingAppCategory] ??
+        "casual";
       let finalText: string;
 
       if (aiCleanup) {

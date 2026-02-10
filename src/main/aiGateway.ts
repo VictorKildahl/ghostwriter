@@ -28,6 +28,12 @@ Writing style: VERY CASUAL
 - Use all lowercase (no capitalization except for proper nouns like names, places, brands).
 - Use minimal punctuation: keep question marks and apostrophes, but omit periods and most commas.
 - Keep a relaxed, texting-like tone.`,
+  excited: `
+Writing style: EXCITED
+- Use proper capitalization (start of sentences, proper nouns).
+- Use full punctuation: periods, commas, question marks.
+- Add exclamation marks where the speaker sounds enthusiastic or positive.
+- Keep the energy of the original speech — lean into excitement without inventing new content.`,
 };
 
 function buildSystemPrompt(writingStyle?: string | null): string {

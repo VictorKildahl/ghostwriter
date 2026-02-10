@@ -8,6 +8,15 @@ export default defineSchema({
     salt: v.string(),
     name: v.optional(v.string()),
     deviceId: v.optional(v.string()),
+    shareTranscripts: v.optional(v.boolean()),
+    stylePreferences: v.optional(
+      v.object({
+        personal: v.string(),
+        work: v.string(),
+        email: v.string(),
+        other: v.string(),
+      }),
+    ),
     createdAt: v.number(),
   })
     .index("by_email", ["email"])
@@ -16,7 +25,7 @@ export default defineSchema({
   sessions: defineTable({
     userId: v.id("users"),
     wordCount: v.number(),
-    durationMs: v.number(),
+    durationMs: v.optional(v.number()),
     rawLength: v.number(),
     cleanedLength: v.number(),
     rawText: v.optional(v.string()),

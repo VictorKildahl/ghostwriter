@@ -20,7 +20,11 @@ export type GhostingShortcutInput = {
   ctrl: boolean;
 };
 
-export type WritingStyle = "formal" | "casual" | "very-casual";
+export type WritingStyle = "formal" | "casual" | "very-casual" | "excited";
+
+export type AppCategory = "personal" | "work" | "email" | "other";
+
+export type StylePreferences = Record<AppCategory, WritingStyle>;
 
 export type GhosttypeSettings = {
   autoPaste: boolean;
@@ -29,7 +33,7 @@ export type GhosttypeSettings = {
   aiCleanup: boolean;
   aiModel: string;
   shareTranscripts: boolean;
-  writingStyle: WritingStyle;
+  stylePreferences: StylePreferences;
 };
 
 export type GhosttypeSettingsUpdate = {
@@ -39,7 +43,7 @@ export type GhosttypeSettingsUpdate = {
   aiCleanup?: boolean;
   aiModel?: string;
   shareTranscripts?: boolean;
-  writingStyle?: WritingStyle;
+  stylePreferences?: Partial<StylePreferences>;
 };
 
 const DEFAULT_SETTINGS: GhosttypeSettings = {
@@ -56,7 +60,12 @@ const DEFAULT_SETTINGS: GhosttypeSettings = {
   aiCleanup: true,
   aiModel: "google/gemini-2.0-flash",
   shareTranscripts: false,
-  writingStyle: "casual",
+  stylePreferences: {
+    personal: "casual",
+    work: "casual",
+    email: "casual",
+    other: "casual",
+  },
 };
 
 const MODIFIER_CODES = new Set([
@@ -310,12 +319,33 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
       ? record.shareTranscripts
       : DEFAULT_SETTINGS.shareTranscripts;
 
-  const VALID_STYLES = new Set(["formal", "casual", "very-casual"]);
-  const writingStyle =
+  const VALID_STYLES = new Set(["formal", "casual", "very-casual", "excited"]);
+
+  const rawPrefs = record.stylePreferences as
+    | Record<string, unknown>
+    | undefined;
+  const categories: AppCategory[] = ["personal", "work", "email", "other"];
+  const stylePreferences = { ...DEFAULT_SETTINGS.stylePreferences };
+  if (rawPrefs && typeof rawPrefs === "object") {
+    for (const cat of categories) {
+      if (
+        typeof rawPrefs[cat] === "string" &&
+        VALID_STYLES.has(rawPrefs[cat] as string)
+      ) {
+        stylePreferences[cat] = rawPrefs[cat] as WritingStyle;
+      }
+    }
+  }
+  // Migrate legacy single writingStyle → apply to all categories
+  if (
+    !rawPrefs &&
     typeof record.writingStyle === "string" &&
     VALID_STYLES.has(record.writingStyle)
-      ? (record.writingStyle as WritingStyle)
-      : DEFAULT_SETTINGS.writingStyle;
+  ) {
+    for (const cat of categories) {
+      stylePreferences[cat] = record.writingStyle as WritingStyle;
+    }
+  }
 
   return {
     autoPaste,
@@ -324,7 +354,7 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
     aiCleanup,
     aiModel,
     shareTranscripts,
-    writingStyle,
+    stylePreferences,
   };
 }
 
@@ -364,7 +394,10 @@ export async function updateSettings(
     aiCleanup: patch.aiCleanup ?? current.aiCleanup,
     aiModel: patch.aiModel ?? current.aiModel,
     shareTranscripts: patch.shareTranscripts ?? current.shareTranscripts,
-    writingStyle: patch.writingStyle ?? current.writingStyle,
+    stylePreferences: {
+      ...current.stylePreferences,
+      ...patch.stylePreferences,
+    },
   };
 
   await saveSettings(next);

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { WritingStyle } from "@/types/ghosttype";
+import type { StylePreferences, WritingStyle } from "@/types/ghosttype";
 import { useState } from "react";
 
 const WRITING_STYLES: {
@@ -36,9 +36,19 @@ const WRITING_STYLES: {
 export function OnboardingStyle({
   onChoice,
 }: {
-  onChoice: (writingStyle: WritingStyle) => void;
+  onChoice: (stylePreferences: StylePreferences) => void;
 }) {
   const [selectedStyle, setSelectedStyle] = useState<WritingStyle>("casual");
+
+  function handleContinue() {
+    // During onboarding, set the chosen style for every category as a starting default
+    onChoice({
+      personal: selectedStyle,
+      work: selectedStyle,
+      email: selectedStyle,
+      other: selectedStyle,
+    });
+  }
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
@@ -94,7 +104,7 @@ export function OnboardingStyle({
         <button
           type="button"
           className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/90"
-          onClick={() => onChoice(selectedStyle)}
+          onClick={handleContinue}
         >
           Continue
         </button>
