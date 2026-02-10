@@ -69,6 +69,7 @@ export type SessionEvent = {
   cleanedLength: number;
   rawText: string;
   cleanedText: string;
+  appName?: string;
   timestamp: number;
 };
 
@@ -102,6 +103,7 @@ export type DisplayInfo = {
 };
 
 export type GhostTypeAPI = {
+  getShowModelPicker: () => boolean;
   getState: () => Promise<GhostingState>;
   startGhosting: () => Promise<void>;
   stopGhosting: () => Promise<void>;

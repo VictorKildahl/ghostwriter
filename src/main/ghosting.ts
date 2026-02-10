@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
 import { cleanupGhostedText } from "./aiGateway";
-import { detectAppCategory, type AppCategory } from "./appCategory";
+import {
+  detectAppCategory,
+  getFrontmostAppName,
+  type AppCategory,
+} from "./appCategory";
 import {
   getDefaultInputDeviceName,
   startRecording,
@@ -31,6 +35,7 @@ export class GhostingController {
   private recordingSession: RecordingSession | null = null;
   private recordingStartTime: number | null = null;
   private recordingAppCategory: AppCategory = "other";
+  private recordingAppName: string = "Unknown";
   private pendingStop = false;
   private state: GhostingState = {
     phase: "idle",
@@ -49,6 +54,7 @@ export class GhostingController {
       cleanedLength: number;
       rawText: string;
       cleanedText: string;
+      appName: string;
     }) => void,
   ) {}
 
@@ -82,6 +88,7 @@ export class GhostingController {
       this.recordingSession = session;
       this.recordingStartTime = Date.now();
       this.recordingAppCategory = detectAppCategory();
+      this.recordingAppName = getFrontmostAppName();
       this.setState({ phase: "recording", error: null });
 
       session.process.once("error", (error) => {
@@ -162,6 +169,7 @@ export class GhostingController {
         cleanedLength: finalText.length,
         rawText,
         cleanedText: finalText,
+        appName: this.recordingAppName,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

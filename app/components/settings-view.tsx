@@ -24,6 +24,7 @@ export function SettingsView() {
   const [defaultDeviceName, setDefaultDeviceName] = useState<string | null>(
     null,
   );
+  const [showModelPicker, setShowModelPicker] = useState(false);
 
   useEffect(() => {
     if (!window.ghosttype) {
@@ -31,6 +32,8 @@ export function SettingsView() {
       return;
     }
     setApiReady(true);
+
+    setShowModelPicker(window.ghosttype.getShowModelPicker());
 
     window.ghosttype
       .getSettings()
@@ -203,6 +206,70 @@ export function SettingsView() {
           </button>
         </div>
 
+        {/* AI cleanup */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">AI cleanup</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Use an AI model to clean up the raw transcription.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.aiCleanup ?? true}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.aiCleanup ?? true) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={() =>
+              updateSettings({ aiCleanup: !(settings?.aiCleanup ?? true) })
+            }
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                settings?.aiCleanup ? "translate-x-5" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Share transcripts */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">
+              Help improve GhostWriter
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              Share your transcriptions anonymously to help us improve accuracy.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.shareTranscripts ?? false}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.shareTranscripts ?? false) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={() =>
+              updateSettings({
+                shareTranscripts: !(settings?.shareTranscripts ?? false),
+              })
+            }
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                settings?.shareTranscripts
+                  ? "translate-x-5"
+                  : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
         {/* Ghosting shortcut */}
         <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
@@ -344,93 +411,31 @@ export function SettingsView() {
           </div>
         )}
 
-        {/* AI cleanup */}
-        <div className="flex items-center justify-between py-5">
-          <div>
-            <p className="text-sm font-medium text-ink">AI cleanup</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Use an AI model to clean up the raw transcription.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-pressed={settings?.aiCleanup ?? true}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
-            style={{
-              backgroundColor:
-                (settings?.aiCleanup ?? true) ? "#6944AE" : "#d4d4d4",
-            }}
-            onClick={() =>
-              updateSettings({ aiCleanup: !(settings?.aiCleanup ?? true) })
-            }
-          >
-            <span
-              className={cn(
-                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
-                settings?.aiCleanup ? "translate-x-5" : "translate-x-0.5",
-              )}
-            />
-          </button>
-        </div>
-
         {/* AI Model */}
-        <div className="py-5">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-ink">AI model</span>
-            <select
-              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-40 hover:cursor-pointer"
-              value={settings?.aiModel ?? "openai/gpt-4o-mini"}
-              disabled={!(settings?.aiCleanup ?? true)}
-              onChange={(event) =>
-                updateSettings({ aiModel: event.target.value })
-              }
-            >
-              {AI_MODEL_OPTIONS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-muted">
-              Faster models reduce latency between speaking and pasting.
-            </span>
-          </label>
-        </div>
-
-        {/* Share transcripts */}
-        <div className="flex items-center justify-between py-5">
-          <div>
-            <p className="text-sm font-medium text-ink">
-              Help improve GhostWriter
-            </p>
-            <p className="mt-0.5 text-xs text-muted">
-              Share your transcriptions anonymously to help us improve accuracy.
-            </p>
+        {showModelPicker && (
+          <div className="py-5">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-medium text-ink">AI model</span>
+              <select
+                className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-40 hover:cursor-pointer"
+                value={settings?.aiModel ?? "google/gemini-2.0-flash"}
+                disabled={!(settings?.aiCleanup ?? true)}
+                onChange={(event) =>
+                  updateSettings({ aiModel: event.target.value })
+                }
+              >
+                {AI_MODEL_OPTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-muted">
+                Faster models reduce latency between speaking and pasting.
+              </span>
+            </label>
           </div>
-          <button
-            type="button"
-            aria-pressed={settings?.shareTranscripts ?? false}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
-            style={{
-              backgroundColor:
-                (settings?.shareTranscripts ?? false) ? "#6944AE" : "#d4d4d4",
-            }}
-            onClick={() =>
-              updateSettings({
-                shareTranscripts: !(settings?.shareTranscripts ?? false),
-              })
-            }
-          >
-            <span
-              className={cn(
-                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
-                settings?.shareTranscripts
-                  ? "translate-x-5"
-                  : "translate-x-0.5",
-              )}
-            />
-          </button>
-        </div>
+        )}
 
         {settingsError && (
           <p className="text-xs text-ember py-5">{settingsError}</p>

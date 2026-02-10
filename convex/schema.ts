@@ -38,6 +38,7 @@ export default defineSchema({
     cleanedLength: v.number(),
     rawText: v.optional(v.string()),
     cleanedText: v.optional(v.string()),
+    appName: v.optional(v.string()), // Frontmost app when transcription was pasted
     timestamp: v.number(),
     date: v.string(), // "YYYY-MM-DD" for easy grouping
   })

@@ -52,6 +52,7 @@ export function useGhostStats(userId: Id<"users"> | null) {
         durationMs: session.durationMs,
         rawLength: session.rawLength,
         cleanedLength: session.cleanedLength,
+        ...(session.appName ? { appName: session.appName } : {}),
         ...(shareTranscripts
           ? { rawText: session.rawText, cleanedText: session.cleanedText }
           : {}),

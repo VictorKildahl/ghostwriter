@@ -118,6 +118,7 @@ export default function Page() {
           userName={auth?.name}
           userEmail={auth?.email}
           onLogout={logout}
+          onNavigateToSettings={() => setView("settings")}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
         />

@@ -75,12 +75,13 @@ export const get = query({
       longestStreak = Math.max(longestStreak, streak);
     }
 
-    // Get last 30 days of daily stats for the chart
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-    const startDate = thirtyDaysAgo.toISOString().slice(0, 10);
+    // Get last year of daily stats for the activity calendar
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    oneYearAgo.setDate(oneYearAgo.getDate() + 1);
+    const yearStartDate = oneYearAgo.toISOString().slice(0, 10);
 
-    const recentDays = allDays.filter((d) => d.date >= startDate);
+    const recentDays = allDays.filter((d) => d.date >= yearStartDate);
 
     // Total days active
     const totalDaysActive = allDays.length;
@@ -89,6 +90,33 @@ export const get = query({
     const totalMinutes = totalDurationMs / 60_000;
     const avgWordsPerMinute =
       totalMinutes > 0 ? Math.round(totalWords / totalMinutes) : 0;
+
+    // ── App usage breakdown ─────────────────────────────────────────
+    // Aggregate session counts and word counts per target app
+    const allSessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const appMap = new Map<
+      string,
+      { sessionCount: number; wordCount: number }
+    >();
+    for (const s of allSessions) {
+      const name = s.appName ?? "Unknown";
+      const existing = appMap.get(name) ?? { sessionCount: 0, wordCount: 0 };
+      existing.sessionCount += 1;
+      existing.wordCount += s.wordCount;
+      appMap.set(name, existing);
+    }
+
+    const topApps = Array.from(appMap.entries())
+      .map(([appName, data]) => ({
+        appName,
+        sessionCount: data.sessionCount,
+        wordCount: data.wordCount,
+      }))
+      .sort((a, b) => b.sessionCount - a.sessionCount);
 
     return {
       totalWords,
@@ -103,6 +131,7 @@ export const get = query({
         wordCount: d.wordCount,
         sessionCount: d.sessionCount,
       })),
+      topApps,
     };
   },
 });

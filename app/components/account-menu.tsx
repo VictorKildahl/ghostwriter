@@ -1,16 +1,18 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function AccountMenu({
   userName,
   userEmail,
   onLogout,
+  onNavigateToSettings,
 }: {
   userName?: string;
   userEmail?: string;
   onLogout: () => void;
+  onNavigateToSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -74,6 +76,16 @@ export function AccountMenu({
           </div>
 
           <div className="border-t border-border px-3 pt-2">
+            <button
+              onClick={() => {
+                setOpen(false);
+                onNavigateToSettings();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted transition hover:bg-gray-50 hover:text-ink"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
             <button
               onClick={() => {
                 setOpen(false);

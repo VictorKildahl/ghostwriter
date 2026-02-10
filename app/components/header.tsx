@@ -7,12 +7,14 @@ export function Header({
   userName,
   userEmail,
   onLogout,
+  onNavigateToSettings,
   sidebarCollapsed,
   onToggleSidebar,
 }: {
   userName?: string;
   userEmail?: string;
   onLogout: () => void;
+  onNavigateToSettings: () => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
 }) {
@@ -35,6 +37,7 @@ export function Header({
           userName={userName}
           userEmail={userEmail}
           onLogout={onLogout}
+          onNavigateToSettings={onNavigateToSettings}
         />
       </div>
     </header>

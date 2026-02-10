@@ -211,6 +211,7 @@ function loadTrayIcon(name: string) {
 }
 
 let cachedAudioDevices: { index: number; name: string }[] = [];
+let cachedDisplays: { id: number; label: string }[] = [];
 
 function createTray() {
   trayIcons = {
@@ -233,7 +234,13 @@ function createTray() {
   tray.on("click", toggleWindow);
   tray.setToolTip("GhostWriter");
 
-  // Cache audio devices and build menu
+  // Cache audio devices and displays, then build menu
+  const primary = screen.getPrimaryDisplay();
+  cachedDisplays = screen.getAllDisplays().map((d, i) => ({
+    id: d.id,
+    label: `Display ${i + 1} — ${d.size.width}×${d.size.height}`,
+  }));
+
   listAudioDevices()
     .then((devices) => {
       cachedAudioDevices = devices;
@@ -301,11 +308,47 @@ function rebuildTrayMenu() {
       },
     }));
 
+  const displaySubmenu: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: "Primary display",
+      type: "radio",
+      checked: !currentSettings.overlayDisplayId,
+      click: async () => {
+        if (!settings) settings = await loadSettings();
+        settings = await updateSettings(settings, {
+          overlayDisplayId: null,
+        });
+        notifySettings(settings);
+        rebuildTrayMenu();
+      },
+    },
+    ...cachedDisplays.map(
+      (display): Electron.MenuItemConstructorOptions => ({
+        label: display.label,
+        type: "radio",
+        checked: currentSettings.overlayDisplayId === display.id,
+        click: async () => {
+          if (!settings) settings = await loadSettings();
+          settings = await updateSettings(settings, {
+            overlayDisplayId: display.id,
+          });
+          notifySettings(settings);
+          rebuildTrayMenu();
+        },
+      }),
+    ),
+  ];
+
+  const showModelPicker = process.env.GHOSTTYPE_SHOW_MODEL_PICKER === "true";
+
   const menu = Menu.buildFromTemplate([
     { label: "Open GhostWriter", click: toggleWindow },
     { type: "separator" },
     { label: "Microphone", submenu: micSubmenu },
-    { label: "AI Model", submenu: modelSubmenu },
+    ...(showModelPicker ? [{ label: "AI Model", submenu: modelSubmenu }] : []),
+    ...(cachedDisplays.length > 1
+      ? [{ label: "Display", submenu: displaySubmenu }]
+      : []),
     { type: "separator" },
     {
       label: "Quit",
@@ -366,7 +409,7 @@ function setupIpc(controller: GhostingController) {
     const primary = screen.getPrimaryDisplay();
     return displays.map((d, i) => ({
       id: d.id,
-      label: `Display ${i + 1}${d.id === primary.id ? " (Primary)" : ""} — ${d.size.width}×${d.size.height}`,
+      label: `Display ${i + 1} — ${d.size.width}×${d.size.height}`,
       width: d.size.width,
       height: d.size.height,
       isPrimary: d.id === primary.id,

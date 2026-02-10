@@ -12,6 +12,7 @@ import type {
 } from "../../types/ghosttype";
 
 const api = {
+  getShowModelPicker: () => process.env.GHOSTTYPE_SHOW_MODEL_PICKER === "true",
   getState: () =>
     ipcRenderer.invoke("ghosting:get-state") as Promise<GhostingState>,
   startGhosting: () => ipcRenderer.invoke("ghosting:start"),

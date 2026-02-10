@@ -10,6 +10,7 @@ export const record = mutation({
     cleanedLength: v.number(),
     rawText: v.optional(v.string()),
     cleanedText: v.optional(v.string()),
+    appName: v.optional(v.string()),
   },
   handler: async (
     ctx,
@@ -21,6 +22,7 @@ export const record = mutation({
       cleanedLength,
       rawText,
       cleanedText,
+      appName,
     },
   ) => {
     const now = Date.now();
@@ -35,6 +37,7 @@ export const record = mutation({
       cleanedLength,
       ...(rawText !== undefined ? { rawText } : {}),
       ...(cleanedText !== undefined ? { cleanedText } : {}),
+      ...(appName !== undefined ? { appName } : {}),
       timestamp: now,
       date,
     });
