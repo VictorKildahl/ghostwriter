@@ -21,6 +21,7 @@ export default function Page() {
   const [view, setView] = useState<View>("home");
   const [authView, setAuthView] = useState<AuthView>("login");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const {
     auth,
@@ -97,13 +98,19 @@ export default function Page() {
   // --------------- Authenticated app ---------------
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-sidebar">
-      <Sidebar currentView={view} onNavigate={setView} />
+      <Sidebar
+        currentView={view}
+        onNavigate={setView}
+        collapsed={sidebarCollapsed}
+      />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
           userName={auth?.name}
           userEmail={auth?.email}
           onLogout={logout}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
         />
 
         <div className="flex flex-1 overflow-hidden rounded-tl-xl bg-white">

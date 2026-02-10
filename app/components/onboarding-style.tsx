@@ -54,9 +54,9 @@ export function OnboardingStyle({
     <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-white p-8 shadow-soft">
         {/* Header */}
-        <div className="mb-6 flex flex-col items-center gap-3">
+        <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="assets/ghosty.png" alt="Ghosty" className="h-14 w-14" />
+          <img src="assets/ghosty.png" alt="Ghosty" className="h-12 w-12" />
           <h1 className="text-xl font-semibold text-ink">
             How do you like to write?
           </h1>
@@ -75,7 +75,7 @@ export function OnboardingStyle({
                 type="button"
                 onClick={() => setSelectedStyle(style.id)}
                 className={cn(
-                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition",
+                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition hover:cursor-pointer",
                   isSelected
                     ? "border-accent bg-accent/5"
                     : "border-border bg-white hover:border-accent/40",
@@ -109,7 +109,7 @@ export function OnboardingStyle({
           Continue
         </button>
 
-        <p className="mt-4 text-center text-xs text-muted">
+        <p className="mt-6 text-center text-xs text-muted">
           You can change this later in Settings.
         </p>
       </div>

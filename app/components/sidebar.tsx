@@ -2,79 +2,79 @@
 
 import { cn } from "@/lib/utils";
 import { BarChart3, LayoutGrid, MessageSquare, Settings } from "lucide-react";
+import { SidebarNavButton } from "./sidebar-nav-button";
 
 export type View = "home" | "stats" | "style" | "settings";
 
 export function Sidebar({
   currentView,
   onNavigate,
+  collapsed,
 }: {
   currentView: View;
   onNavigate: (view: View) => void;
+  collapsed: boolean;
 }) {
   return (
-    <aside className="flex w-44 shrink-0 flex-col bg-sidebar">
-      {/* Logo — extra top padding to clear macOS traffic lights */}
-      <div className="title-bar flex items-center gap-2 px-5 pt-16 pb-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="assets/ghosty.png" alt="Ghosty" className="h-7 w-7" />
-        <span className="text-base font-semibold text-ink">GhostWriter</span>
+    <aside
+      className={cn(
+        "flex shrink-0 flex-col bg-sidebar transition-all duration-200",
+        collapsed ? "w-16" : "w-54",
+      )}
+    >
+      {/* Traffic-light drag area */}
+      <div className="title-bar h-12 shrink-0" />
+
+      {/* Logo */}
+      <div className="flex items-center gap-2 overflow-hidden pb-6 pt-4 pl-5">
+        <img
+          src="assets/ghosty.png"
+          alt="Ghosty"
+          className="h-7 w-7 shrink-0"
+        />
+        <span
+          className={cn(
+            "truncate text-base font-semibold text-ink transition-opacity duration-200",
+            collapsed ? "opacity-0" : "opacity-100",
+          )}
+        >
+          GhostWriter
+        </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-1 px-3">
-        <button
+      <nav className={cn("flex flex-1 flex-col gap-1 px-3")}>
+        <SidebarNavButton
+          icon={LayoutGrid}
+          label="Home"
+          active={currentView === "home"}
+          collapsed={collapsed}
           onClick={() => onNavigate("home")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition",
-            currentView === "home"
-              ? "bg-white text-ink shadow-xs"
-              : "text-muted hover:bg-white/60 hover:text-ink",
-          )}
-        >
-          <LayoutGrid className="h-4 w-4" />
-          Home
-        </button>
-        <button
+        />
+        <SidebarNavButton
+          icon={BarChart3}
+          label="Stats"
+          active={currentView === "stats"}
+          collapsed={collapsed}
           onClick={() => onNavigate("stats")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition",
-            currentView === "stats"
-              ? "bg-white text-ink shadow-xs"
-              : "text-muted hover:bg-white/60 hover:text-ink",
-          )}
-        >
-          <BarChart3 className="h-4 w-4" />
-          Stats
-        </button>
-        <button
+        />
+        <SidebarNavButton
+          icon={MessageSquare}
+          label="Style"
+          active={currentView === "style"}
+          collapsed={collapsed}
           onClick={() => onNavigate("style")}
-          className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition",
-            currentView === "style"
-              ? "bg-white text-ink shadow-xs"
-              : "text-muted hover:bg-white/60 hover:text-ink",
-          )}
-        >
-          <MessageSquare className="h-4 w-4" />
-          Style
-        </button>
+        />
       </nav>
 
-      {/* Bottom: Settings + User */}
-      <div className="flex flex-col gap-1 px-3 pb-4">
-        <button
+      <div className={cn("flex flex-col gap-1 pb-4 px-3")}>
+        <SidebarNavButton
+          icon={Settings}
+          label="Settings"
+          active={currentView === "settings"}
+          collapsed={collapsed}
           onClick={() => onNavigate("settings")}
-          className={cn(
-            "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition",
-            currentView === "settings"
-              ? "bg-white text-ink shadow-xs"
-              : "text-muted hover:bg-white/60 hover:text-ink",
-          )}
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </button>
+        />
       </div>
     </aside>
   );

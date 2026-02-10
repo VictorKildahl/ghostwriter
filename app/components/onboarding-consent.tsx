@@ -9,9 +9,9 @@ export function OnboardingConsent({
     <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
       <div className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-soft">
         {/* Header */}
-        <div className="mb-6 flex flex-col items-center gap-3">
+        <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="assets/ghosty.png" alt="Ghosty" className="h-14 w-14" />
+          <img src="assets/ghosty.png" alt="Ghosty" className="h-12 w-12" />
           <h1 className="text-xl font-semibold text-ink">
             Help improve GhostWriter?
           </h1>
@@ -46,7 +46,7 @@ export function OnboardingConsent({
           </button>
         </div>
 
-        <p className="mt-5 text-center text-[11px] leading-relaxed text-muted/70">
+        <p className="mt-6 text-center text-xs leading-relaxed text-muted/70">
           We never share your data with third parties. Transcriptions are only
           used to improve speech recognition quality.
         </p>

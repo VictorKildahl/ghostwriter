@@ -48,7 +48,7 @@ export function SignUpView({
     <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-8 shadow-soft">
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-2">
+        <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="assets/ghosty.png" alt="Ghosty" className="h-12 w-12" />
           <h1 className="text-xl font-semibold text-ink">Create account</h1>

@@ -42,7 +42,7 @@ export function AccountMenu({
       <button
         ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:text-ink"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink"
         title={userEmail}
       >
         <User className="h-5 w-5" />
@@ -61,7 +61,7 @@ export function AccountMenu({
             </div>
             <div className="min-w-0">
               {userName && (
-                <p className="truncate text-[15px] font-semibold text-ink">
+                <p className="truncate text-sm font-semibold text-ink">
                   {userName}
                 </p>
               )}

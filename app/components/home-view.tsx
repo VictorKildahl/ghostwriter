@@ -185,7 +185,7 @@ export function HomeView({
       }
     >
       {/* Hero description card */}
-      <div className="mb-8 rounded-xl bg-sidebar px-8 py-8">
+      <div className="mb-6 rounded-xl bg-sidebar p-6">
         {state.phase === "error" ? (
           <div className="flex flex-col items-center gap-2 py-4">
             <span className="font-medium text-ember">
@@ -204,9 +204,9 @@ export function HomeView({
           </div>
         ) : (
           <>
-            <h2 className="text-2xl leading-snug font-semibold text-ink md:text-3xl">
+            <h2 className="text-2xl leading-snug font-semibold text-ink">
               Hold{" "}
-              <span className="ghosttype-code text-3xl! text-ghosty md:text-2xl">
+              <span className="ghosttype-code text-2xl! text-ghosty">
                 {shortcutLabel}
               </span>{" "}
               to dictate and let
@@ -232,76 +232,78 @@ export function HomeView({
           No ghosted text yet. Start ghosting to see your activity here.
         </p>
       ) : (
-        groups.map((group) => (
-          <div key={group.date} className="mb-8">
-            {/* Date header with copy-all button */}
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold tracking-widest text-muted uppercase">
-                {group.date}
-              </p>
-              <button
-                type="button"
-                onClick={() => handleCopyGroup(group.entries, group.date)}
-                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted transition hover:bg-sidebar hover:text-ink"
-              >
-                {copiedGroup === group.date ? (
-                  <>
-                    <Check size={14} className="text-ghosty" />
-                    <span className="text-ghosty">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    <span>Copy transcript</span>
-                  </>
-                )}
-              </button>
-            </div>
+        <div className="flex flex-col gap-6">
+          {groups.map((group) => (
+            <div key={group.date}>
+              {/* Date header with copy-all button */}
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-widest text-muted uppercase">
+                  {group.date}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleCopyGroup(group.entries, group.date)}
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted transition hover:bg-sidebar hover:text-ink hover:cursor-pointer"
+                >
+                  {copiedGroup === group.date ? (
+                    <>
+                      <Check size={14} className="text-ghosty" />
+                      <span className="text-ghosty">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copy transcript</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
-            {/* Entries */}
-            <div className="divide-y divide-border rounded-xl border border-border bg-white">
-              {group.entries.map((entry, i) => {
-                const entryKey = `${group.date}-${i}`;
-                return (
-                  <div
-                    key={entryKey}
-                    className="group flex items-start gap-6 px-5 py-4 text-sm"
-                  >
-                    <span className="w-20 shrink-0 pt-0.5 text-muted">
-                      {formatTime(entry.timestamp)}
-                    </span>
-                    <p className="flex-1 leading-relaxed text-ink">
-                      {entry.text}
-                    </p>
-                    {/* Action buttons — visible on hover */}
-                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyEntry(entry.text, entryKey)}
-                        className="rounded-md p-1.5 text-muted transition hover:bg-sidebar hover:text-ink"
-                        title="Copy to clipboard"
-                      >
-                        {copiedIndex === entryKey ? (
-                          <Check size={16} className="text-ghosty" />
-                        ) : (
-                          <Copy size={16} />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEntry(group.date, i)}
-                        className="rounded-md p-1.5 text-muted transition hover:bg-red-50 hover:text-red-500"
-                        title="Delete entry"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+              {/* Entries */}
+              <div className="divide-y divide-border rounded-xl border border-border bg-white">
+                {group.entries.map((entry, i) => {
+                  const entryKey = `${group.date}-${i}`;
+                  return (
+                    <div
+                      key={entryKey}
+                      className="group flex items-start gap-6 px-5 py-4 text-sm"
+                    >
+                      <span className="w-20 shrink-0 text-muted">
+                        {formatTime(entry.timestamp)}
+                      </span>
+                      <p className="flex-1 leading-relaxed text-ink">
+                        {entry.text}
+                      </p>
+                      {/* Action buttons — visible on hover */}
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyEntry(entry.text, entryKey)}
+                          className="rounded-md p-1.5 text-muted transition hover:bg-sidebar hover:text-ink hover:cursor-pointer"
+                          title="Copy to clipboard"
+                        >
+                          {copiedIndex === entryKey ? (
+                            <Check size={16} className="text-ghosty" />
+                          ) : (
+                            <Copy size={16} />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEntry(group.date, i)}
+                          className="rounded-md p-1.5 text-muted transition hover:bg-red-50 hover:text-red-500 hover:cursor-pointer"
+                          title="Delete entry"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </PageLayout>
   );

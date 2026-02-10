@@ -146,7 +146,7 @@ export function StyleView() {
               type="button"
               onClick={() => setActiveTab(t.id)}
               className={cn(
-                "relative pb-2.5 text-sm font-medium transition",
+                "relative pb-2.5 text-sm font-medium transition hover:cursor-pointer",
                 activeTab === t.id
                   ? "text-ink"
                   : "text-muted hover:text-ink/70",
@@ -164,7 +164,7 @@ export function StyleView() {
         <p className="mb-6 text-xs text-muted">{tab.description}</p>
 
         {/* Style cards */}
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-3 gap-4">
           {tab.styles.map((style) => {
             const isSelected = currentStyle === style.id;
             return (
@@ -173,7 +173,7 @@ export function StyleView() {
                 type="button"
                 onClick={() => selectStyle(activeTab, style.id)}
                 className={cn(
-                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition",
+                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition hover:cursor-pointer",
                   isSelected
                     ? "border-accent bg-accent/5"
                     : "border-border bg-white hover:border-accent/40",

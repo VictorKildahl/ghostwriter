@@ -84,8 +84,10 @@ function resolveAppResourcePath(...segments: string[]) {
 
 function createMainWindow() {
   const win = new BrowserWindow({
-    width: 1000,
-    height: 800,
+    width: 1350,
+    height: 850,
+    minWidth: 1140,
+    minHeight: 750,
     resizable: true,
     show: false,
     backgroundColor: "#ffffff",

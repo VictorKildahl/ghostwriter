@@ -161,9 +161,9 @@ export function SettingsView() {
 
   return (
     <PageLayout title="Settings" subtitle="Configure how GhostWriter works.">
-      <div className="flex flex-col divide-y divide-border py-2">
+      <div className="flex flex-col divide-y divide-border">
         {/* Auto-paste */}
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-between py-5">
           <div>
             <p className="text-sm font-medium text-ink">
               Auto-paste ghosted text
@@ -175,7 +175,7 @@ export function SettingsView() {
           <button
             type="button"
             aria-pressed={settings?.autoPaste ?? true}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition"
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
             style={{
               backgroundColor:
                 (settings?.autoPaste ?? true) ? "#6944AE" : "#d4d4d4",
@@ -193,37 +193,8 @@ export function SettingsView() {
           </button>
         </div>
 
-        {/* AI cleanup */}
-        <div className="flex items-center justify-between py-4">
-          <div>
-            <p className="text-sm font-medium text-ink">AI cleanup</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Use an AI model to clean up the raw transcription.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-pressed={settings?.aiCleanup ?? true}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition"
-            style={{
-              backgroundColor:
-                (settings?.aiCleanup ?? true) ? "#6944AE" : "#d4d4d4",
-            }}
-            onClick={() =>
-              updateSettings({ aiCleanup: !(settings?.aiCleanup ?? true) })
-            }
-          >
-            <span
-              className={cn(
-                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
-                settings?.aiCleanup ? "translate-x-5" : "translate-x-0.5",
-              )}
-            />
-          </button>
-        </div>
-
         {/* Ghosting shortcut */}
-        <div className="py-4">
+        <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium text-ink">Ghosting shortcut</span>
             <input
@@ -258,11 +229,11 @@ export function SettingsView() {
         </div>
 
         {/* Microphone */}
-        <div className="py-4">
+        <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium text-ink">Microphone</span>
             <select
-              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 hover:cursor-pointer"
               value={settings?.selectedMicrophone ?? ""}
               onChange={(event) => {
                 const value = event.target.value;
@@ -300,7 +271,7 @@ export function SettingsView() {
             <button
               type="button"
               className={cn(
-                "self-start rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                "self-start rounded-lg px-3 py-1.5 text-xs font-medium transition hover:cursor-pointer",
                 micTesting
                   ? "bg-ember/10 text-ember hover:bg-ember/20"
                   : "bg-accent/10 text-accent hover:bg-accent/20",
@@ -334,12 +305,41 @@ export function SettingsView() {
           </div>
         </div>
 
+        {/* AI cleanup */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">AI cleanup</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Use an AI model to clean up the raw transcription.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.aiCleanup ?? true}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.aiCleanup ?? true) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={() =>
+              updateSettings({ aiCleanup: !(settings?.aiCleanup ?? true) })
+            }
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                settings?.aiCleanup ? "translate-x-5" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
         {/* AI Model */}
-        <div className="py-4">
+        <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium text-ink">AI model</span>
             <select
-              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-40"
+              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-40 hover:cursor-pointer"
               value={settings?.aiModel ?? "openai/gpt-4o-mini"}
               disabled={!(settings?.aiCleanup ?? true)}
               onChange={(event) =>
@@ -359,7 +359,7 @@ export function SettingsView() {
         </div>
 
         {/* Share transcripts */}
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-between py-5">
           <div>
             <p className="text-sm font-medium text-ink">
               Help improve GhostWriter
@@ -371,7 +371,7 @@ export function SettingsView() {
           <button
             type="button"
             aria-pressed={settings?.shareTranscripts ?? false}
-            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition"
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
             style={{
               backgroundColor:
                 (settings?.shareTranscripts ?? false) ? "#6944AE" : "#d4d4d4",
@@ -394,7 +394,7 @@ export function SettingsView() {
         </div>
 
         {settingsError && (
-          <p className="text-xs text-ember py-4">{settingsError}</p>
+          <p className="text-xs text-ember py-5">{settingsError}</p>
         )}
       </div>
     </PageLayout>
