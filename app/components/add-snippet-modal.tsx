@@ -28,6 +28,16 @@ export function AddSnippetModal({
     }
   }, [open, initialSnippet, initialExpansion]);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   function handleSubmit() {
     const trimmedSnippet = snippet.trim();
     const trimmedExpansion = expansion.trim();
