@@ -83,7 +83,7 @@ let trayIcons: {
   recording: Electron.NativeImage;
 } | null = null;
 let settings: GhosttypeSettings | null = null;
-let isCapturingShortcut = false;
+let capturingShortcutTarget: "shortcut" | "toggleShortcut" | null = null;
 let activeMicTest: MicTestSession | null = null;
 
 function resolveRendererUrl() {
@@ -178,7 +178,10 @@ function createOverlayWindow() {
 
   win.setAlwaysOnTop(true, "floating");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.setIgnoreMouseEvents(true, { forward: true });
+  // Start with mouse events enabled — on macOS, transparent pixels are
+  // naturally click-through so only the visible pill captures the mouse.
+  // This lets the CSS cursor: pointer work immediately on hover.
+  win.setIgnoreMouseEvents(false);
 
   // Prevent the overlay from ever being minimized or closed
   win.on("minimize", () => win.restore());
@@ -385,6 +388,16 @@ function setupIpc(controller: GhostingController) {
   ipcMain.handle("ghosting:start", () => controller.startGhosting());
   ipcMain.handle("ghosting:stop", () => controller.stopGhosting());
   ipcMain.handle("ghosting:cancel", () => controller.cancelGhosting());
+  ipcMain.handle("ghosting:toggle", () => {
+    const state = controller.getState();
+    if (state.phase === "recording") {
+      return controller.stopGhosting();
+    }
+    if (state.phase === "idle" || state.phase === "error") {
+      return controller.startGhosting();
+    }
+    // If transcribing or cleaning, ignore the toggle
+  });
   ipcMain.handle(
     "ghosting:get-settings",
     () => settings ?? getDefaultSettings(),
@@ -400,12 +413,15 @@ function setupIpc(controller: GhostingController) {
       return settings;
     },
   );
-  ipcMain.handle("ghosting:start-shortcut-capture", () => {
-    isCapturingShortcut = true;
-    return settings ?? getDefaultSettings();
-  });
+  ipcMain.handle(
+    "ghosting:start-shortcut-capture",
+    (_event, target?: "shortcut" | "toggleShortcut") => {
+      capturingShortcutTarget = target ?? "shortcut";
+      return settings ?? getDefaultSettings();
+    },
+  );
   ipcMain.handle("ghosting:stop-shortcut-capture", () => {
-    isCapturingShortcut = false;
+    capturingShortcutTarget = null;
   });
   ipcMain.handle("ghosting:get-audio-devices", () => listAudioDevices());
   ipcMain.handle("ghosting:get-default-input-device", () =>
@@ -552,9 +568,10 @@ async function commitShortcut(shortcut: GhostingShortcut) {
   if (!settings) {
     settings = await loadSettings();
   }
-  settings = await updateSettings(settings, { shortcut });
+  const target = capturingShortcutTarget ?? "shortcut";
+  settings = await updateSettings(settings, { [target]: shortcut });
   notifySettings(settings);
-  isCapturingShortcut = false;
+  capturingShortcutTarget = null;
   notifyShortcutPreview("Press new shortcut...");
 }
 
@@ -622,12 +639,13 @@ app.whenReady().then(async () => {
     (state) => {
       mainWindow?.webContents.send("ghosting:state", state);
       overlayWindow?.webContents.send("overlay:state", state);
-      if (state.phase === "recording") {
-        repositionOverlay();
-        // Recording controls need to be clickable
+      if (state.phase === "recording" || state.phase === "idle") {
+        if (state.phase === "recording") repositionOverlay();
+        // Idle & recording: mouse events enabled so CSS cursor works.
+        // On macOS transparent pixels are naturally click-through.
         overlayWindow?.setIgnoreMouseEvents(false);
       } else {
-        // Other phases: click-through with mouse event forwarding
+        // Transcribing / cleaning / error: fully click-through
         overlayWindow?.setIgnoreMouseEvents(true, { forward: true });
       }
       if (tray && trayIcons) {
@@ -658,13 +676,23 @@ app.whenReady().then(async () => {
 
   unregisterHotkey = registerGhostingHotkey({
     getShortcut: () => settings?.shortcut ?? getDefaultSettings().shortcut,
-    isCaptureActive: () => isCapturingShortcut,
+    getToggleShortcut: () => settings?.toggleShortcut ?? null,
+    isCaptureActive: () => capturingShortcutTarget !== null,
     onCapturePreview: notifyShortcutPreview,
     onCaptureComplete: (shortcut) => {
       void commitShortcut(shortcut);
     },
     onStart: () => controller.startGhosting(),
     onStop: () => controller.stopGhosting(),
+    onToggle: () => {
+      const state = controller.getState();
+      if (state.phase === "recording") {
+        return controller.stopGhosting();
+      }
+      if (state.phase === "idle" || state.phase === "error") {
+        return controller.startGhosting();
+      }
+    },
   });
 });
 

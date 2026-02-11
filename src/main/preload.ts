@@ -48,9 +48,10 @@ const api = {
       ipcRenderer.removeListener("ghosting:mic-level", listener);
     };
   },
-  startShortcutCapture: () =>
+  startShortcutCapture: (target?: "shortcut" | "toggleShortcut") =>
     ipcRenderer.invoke(
       "ghosting:start-shortcut-capture",
+      target,
     ) as Promise<GhosttypeSettings>,
   stopShortcutCapture: () =>
     ipcRenderer.invoke("ghosting:stop-shortcut-capture"),

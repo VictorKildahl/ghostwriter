@@ -3,16 +3,18 @@ import {
   formatShortcutPreview,
   isModifierKeycode,
   shortcutFromKeycode,
-  type GhostingShortcut
+  type GhostingShortcut,
 } from "./settings";
 
 type GhostingHotkeyHandlers = {
   getShortcut: () => GhostingShortcut;
+  getToggleShortcut: () => GhostingShortcut | null;
   isCaptureActive: () => boolean;
   onCapturePreview: (preview: string) => void;
   onCaptureComplete: (shortcut: GhostingShortcut) => void | Promise<void>;
   onStart: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
+  onToggle: () => void | Promise<void>;
 };
 
 const isMetaPressed = (pressed: Set<number>) =>
@@ -32,7 +34,7 @@ function getModifiers(pressed: Set<number>) {
     meta: isMetaPressed(pressed),
     shift: isShiftPressed(pressed),
     alt: isAltPressed(pressed),
-    ctrl: isCtrlPressed(pressed)
+    ctrl: isCtrlPressed(pressed),
   };
 }
 
@@ -49,14 +51,18 @@ function matchesShortcut(pressed: Set<number>, shortcut: GhostingShortcut) {
 
 export function registerGhostingHotkey({
   getShortcut,
+  getToggleShortcut,
   isCaptureActive,
   onCapturePreview,
   onCaptureComplete,
   onStart,
-  onStop
+  onStop,
+  onToggle,
 }: GhostingHotkeyHandlers) {
   const pressed = new Set<number>();
   let isActive = false;
+  // Guard against rapid repeated toggle presses
+  let toggleCooldown = false;
 
   uIOhook.on("keydown", (event) => {
     pressed.add(event.keycode);
@@ -73,12 +79,30 @@ export function registerGhostingHotkey({
         onCapturePreview(formatShortcutPreview(modifiers, shortcut.key));
         onCaptureComplete(shortcut);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Invalid shortcut";
+        const message =
+          error instanceof Error ? error.message : "Invalid shortcut";
         onCapturePreview(message);
       }
       return;
     }
 
+    // Check toggle shortcut first
+    const toggleShortcut = getToggleShortcut();
+    if (
+      toggleShortcut &&
+      event.keycode === toggleShortcut.keycode &&
+      matchesShortcut(pressed, toggleShortcut) &&
+      !toggleCooldown
+    ) {
+      toggleCooldown = true;
+      setTimeout(() => {
+        toggleCooldown = false;
+      }, 300);
+      onToggle();
+      return;
+    }
+
+    // Hold-to-record shortcut
     const shortcut = getShortcut();
     if (
       event.keycode === shortcut.keycode &&

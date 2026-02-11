@@ -19,6 +19,10 @@ export function SettingsView() {
   const [apiReady, setApiReady] = useState(false);
   const [shortcutCapture, setShortcutCapture] = useState(false);
   const [capturePreview, setCapturePreview] = useState("Press new shortcut...");
+  const [toggleShortcutCapture, setToggleShortcutCapture] = useState(false);
+  const [toggleCapturePreview, setToggleCapturePreview] = useState(
+    "Press new shortcut...",
+  );
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [defaultDeviceName, setDefaultDeviceName] = useState<string | null>(
@@ -56,9 +60,12 @@ export function SettingsView() {
       setSettings(next);
       setShortcutCapture(false);
       setCapturePreview("Press new shortcut...");
+      setToggleShortcutCapture(false);
+      setToggleCapturePreview("Press new shortcut...");
     });
     const unsubscribePreview = window.ghosttype.onShortcutPreview((preview) => {
       setCapturePreview(preview);
+      setToggleCapturePreview(preview);
     });
 
     return () => {
@@ -90,7 +97,7 @@ export function SettingsView() {
   async function beginShortcutCapture() {
     if (!window.ghosttype) return;
     try {
-      await window.ghosttype.startShortcutCapture();
+      await window.ghosttype.startShortcutCapture("shortcut");
       setShortcutCapture(true);
       setCapturePreview("Press new shortcut...");
       setSettingsError(null);
@@ -108,6 +115,44 @@ export function SettingsView() {
     await window.ghosttype.stopShortcutCapture();
     setShortcutCapture(false);
     setCapturePreview("Press new shortcut...");
+  }
+
+  async function beginToggleShortcutCapture() {
+    if (!window.ghosttype) return;
+    try {
+      await window.ghosttype.startShortcutCapture("toggleShortcut");
+      setToggleShortcutCapture(true);
+      setToggleCapturePreview("Press new shortcut...");
+      setSettingsError(null);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to start shortcut capture.";
+      setSettingsError(message);
+    }
+  }
+
+  async function endToggleShortcutCapture() {
+    if (!window.ghosttype) return;
+    await window.ghosttype.stopShortcutCapture();
+    setToggleShortcutCapture(false);
+    setToggleCapturePreview("Press new shortcut...");
+  }
+
+  async function clearToggleShortcut() {
+    if (!window.ghosttype) return;
+    try {
+      const next = await window.ghosttype.updateSettings({
+        toggleShortcut: null,
+      });
+      setSettings(next);
+      setSettingsError(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save settings.";
+      setSettingsError(message);
+    }
   }
 
   /* ---- Mic test ---- */
@@ -301,6 +346,57 @@ export function SettingsView() {
             />
             <span className="text-xs text-muted">
               Click the field, then press the keys you want to use.
+            </span>
+          </label>
+        </div>
+
+        {/* Toggle ghosting shortcut */}
+        <div className="py-5">
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium text-ink">
+              Toggle ghosting shortcut
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                className="ghosttype-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                style={
+                  toggleShortcutCapture
+                    ? {
+                        borderColor: "#6944AE",
+                        backgroundColor: "rgba(105, 68, 174, 0.1)",
+                      }
+                    : {}
+                }
+                value={
+                  toggleShortcutCapture
+                    ? toggleCapturePreview
+                    : settings?.toggleShortcut
+                      ? formatShortcut(settings.toggleShortcut)
+                      : "Not set"
+                }
+                placeholder="Press shortcut"
+                readOnly
+                onFocus={beginToggleShortcutCapture}
+                onBlur={endToggleShortcutCapture}
+                onMouseDown={(event) => {
+                  if (toggleShortcutCapture) return;
+                  event.preventDefault();
+                  beginToggleShortcutCapture();
+                }}
+              />
+              {settings?.toggleShortcut && !toggleShortcutCapture && (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-muted hover:text-ink hover:bg-border/50 transition hover:cursor-pointer"
+                  onClick={clearToggleShortcut}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <span className="text-xs text-muted">
+              Press once to start ghosting, press again to stop. You can also
+              click the overlay pill to toggle.
             </span>
           </label>
         </div>

@@ -29,6 +29,7 @@ export type StylePreferences = Record<AppCategory, WritingStyle>;
 export type GhosttypeSettings = {
   autoPaste: boolean;
   shortcut: GhostingShortcut;
+  toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
   aiCleanup: boolean;
   aiModel: string;
@@ -43,6 +44,7 @@ export type GhosttypeSettings = {
 export type GhosttypeSettingsUpdate = {
   autoPaste?: boolean;
   shortcut?: GhostingShortcutInput | GhostingShortcut;
+  toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
   aiCleanup?: boolean;
   aiModel?: string;
@@ -64,6 +66,7 @@ const DEFAULT_SETTINGS: GhosttypeSettings = {
     alt: false,
     ctrl: false,
   },
+  toggleShortcut: null,
   selectedMicrophone: null,
   aiCleanup: true,
   aiModel: "google/gemini-2.0-flash",
@@ -390,9 +393,24 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
         ? record.cursorFileTagging
         : DEFAULT_SETTINGS.editorFileTagging;
 
+  const toggleShortcutRaw = record.toggleShortcut as
+    | Partial<GhostingShortcut>
+    | undefined;
+  const toggleShortcut =
+    toggleShortcutRaw &&
+    typeof toggleShortcutRaw.key === "string" &&
+    typeof toggleShortcutRaw.keycode === "number" &&
+    typeof toggleShortcutRaw.meta === "boolean" &&
+    typeof toggleShortcutRaw.shift === "boolean" &&
+    typeof toggleShortcutRaw.alt === "boolean" &&
+    typeof toggleShortcutRaw.ctrl === "boolean"
+      ? (toggleShortcutRaw as GhostingShortcut)
+      : null;
+
   return {
     autoPaste,
     shortcut,
+    toggleShortcut,
     selectedMicrophone,
     aiCleanup,
     aiModel,
@@ -434,6 +452,14 @@ export async function updateSettings(
         ? patch.shortcut
         : resolveShortcut(patch.shortcut)
       : current.shortcut,
+    toggleShortcut:
+      patch.toggleShortcut !== undefined
+        ? patch.toggleShortcut === null
+          ? null
+          : isResolvedShortcut(patch.toggleShortcut)
+            ? patch.toggleShortcut
+            : resolveShortcut(patch.toggleShortcut)
+        : current.toggleShortcut,
     selectedMicrophone:
       patch.selectedMicrophone !== undefined
         ? patch.selectedMicrophone

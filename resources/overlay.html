@@ -34,6 +34,7 @@
         flex-direction: column;
         align-items: center;
         gap: 6px;
+        cursor: pointer;
       }
       #idle-container.hidden {
         display: none;
@@ -80,7 +81,37 @@
         background: rgba(20, 20, 20, 0.92);
         box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
         transition: all 0.3s ease;
-        cursor: default;
+        cursor: pointer;
+      }
+
+      #idle-container:hover #orb {
+        width: 58px;
+        border-color: rgba(192, 132, 252, 0.7);
+        background: linear-gradient(
+          135deg,
+          rgba(192, 132, 252, 0.25),
+          rgba(147, 130, 255, 0.15)
+        );
+        box-shadow:
+          0 0 8px rgba(192, 132, 252, 0.3),
+          0 0 20px rgba(192, 132, 252, 0.12);
+        animation: orb-breathe 1.4s ease-in-out infinite;
+      }
+
+      @keyframes orb-breathe {
+        0%,
+        100% {
+          transform: scaleX(1) scaleY(1);
+          box-shadow:
+            0 0 8px rgba(192, 132, 252, 0.3),
+            0 0 20px rgba(192, 132, 252, 0.12);
+        }
+        50% {
+          transform: scaleX(1.06) scaleY(1.15);
+          box-shadow:
+            0 0 12px rgba(192, 132, 252, 0.45),
+            0 0 28px rgba(192, 132, 252, 0.2);
+        }
       }
 
       /* ─── Active bar (recording / transcribing / cleaning) ─── */
@@ -100,7 +131,7 @@
         position: relative;
         height: 32px;
         width: 145px;
-        cursor: default;
+        cursor: pointer;
       }
       #active-bar.visible {
         display: flex;
@@ -183,9 +214,10 @@
     <!-- Idle state: small pill + hover tooltip -->
     <div id="idle-container">
       <div id="tooltip">
-        <span class="key">Hold </span>
+        <span class="key">Click or hold </span>
         <span class="shortcut" id="shortcut-label">…</span>
-        <span class="key"> to ghost</span>
+        <span class="key"> to start ghosting</span>
+        <!-- <span id="toggle-hint"></span> -->
       </div>
       <div id="orb"></div>
     </div>
@@ -203,9 +235,12 @@
       const idleContainer = document.getElementById("idle-container");
       const tooltip = document.getElementById("tooltip");
       const shortcutLabel = document.getElementById("shortcut-label");
+      const toggleHint = document.getElementById("toggle-hint");
       const activeBar = document.getElementById("active-bar");
       const activeLabel = document.getElementById("active-label");
       const errorPill = document.getElementById("error-pill");
+
+      let hasToggleShortcut = false;
 
       function formatKey(key) {
         const map = {
@@ -287,6 +322,23 @@
         if (!settings?.shortcut) return;
         console.log("[overlay] settings:", JSON.stringify(settings.shortcut));
         shortcutLabel.textContent = formatShortcut(settings.shortcut);
+
+        // Track whether a toggle shortcut is configured
+        hasToggleShortcut = !!(
+          settings.toggleShortcut && settings.toggleShortcut.key
+        );
+
+        // Update the toggle hint in the tooltip
+        if (hasToggleShortcut) {
+          toggleHint.innerHTML =
+            ' <span class="key"> · toggle </span>' +
+            '<span class="shortcut">' +
+            formatShortcut(settings.toggleShortcut) +
+            "</span>" +
+            ' <span class="key"> · or click</span>';
+        } else {
+          toggleHint.innerHTML = ' <span class="key"> · or click</span>';
+        }
       }
 
       // Pull initial values on load
@@ -301,12 +353,23 @@
       idleContainer.addEventListener("mouseenter", () => {
         if (currentPhase !== "idle") return;
         tooltip.classList.add("visible");
-        window.electronOverlay?.setIgnoreMouse(false);
       });
       idleContainer.addEventListener("mouseleave", () => {
         if (currentPhase !== "idle") return;
         tooltip.classList.remove("visible");
-        window.electronOverlay?.setIgnoreMouse(true);
+      });
+
+      // Click on idle pill → toggle ghosting on
+      idleContainer.addEventListener("click", () => {
+        if (currentPhase !== "idle") return;
+        window.electronOverlay?.toggleGhosting();
+        tooltip.classList.remove("visible");
+      });
+
+      // Click on active bar → toggle ghosting off (only during recording)
+      activeBar.addEventListener("click", () => {
+        if (currentPhase !== "recording") return;
+        window.electronOverlay?.toggleGhosting();
       });
     </script>
   </body>

@@ -50,6 +50,7 @@ export type VibeCodeFile = {
 export type GhosttypeSettings = {
   autoPaste: boolean;
   shortcut: GhostingShortcut;
+  toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
   aiCleanup: boolean;
   aiModel: string;
@@ -64,6 +65,7 @@ export type GhosttypeSettings = {
 export type GhosttypeSettingsUpdate = {
   autoPaste?: boolean;
   shortcut?: GhostingShortcutInput | GhostingShortcut;
+  toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
   aiCleanup?: boolean;
   aiModel?: string;
@@ -138,7 +140,9 @@ export type GhostTypeAPI = {
   startMicTest: (microphone: string | null) => Promise<void>;
   stopMicTest: () => Promise<void>;
   onMicLevel: (callback: (level: number) => void) => () => void;
-  startShortcutCapture: () => Promise<GhosttypeSettings>;
+  startShortcutCapture: (
+    target?: "shortcut" | "toggleShortcut",
+  ) => Promise<GhosttypeSettings>;
   stopShortcutCapture: () => Promise<void>;
   getDeviceId: () => Promise<string>;
   getLocalTranscripts: () => Promise<LocalTranscript[]>;

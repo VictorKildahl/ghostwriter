@@ -40,6 +40,7 @@ const api = {
   setIgnoreMouse: (ignore: boolean) => {
     ipcRenderer.send("overlay:set-ignore-mouse", ignore);
   },
+  toggleGhosting: () => ipcRenderer.invoke("ghosting:toggle"),
   stopGhosting: () => ipcRenderer.invoke("ghosting:stop"),
   cancelGhosting: () => ipcRenderer.invoke("ghosting:cancel"),
 };
