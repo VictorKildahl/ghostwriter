@@ -243,7 +243,8 @@ function buildSystemPrompt(
 
   let vibeCodeSection = "";
   if (isVibeCode) {
-    // Extract identifiers from all context files into a flat lookup list
+    // Extract identifiers from all context files into a flat lookup list.
+    // We only send identifiers (not full file contents) to keep token usage low.
     const allIdentifiers = new Set<string>();
     for (const f of vibeCodeFiles) {
       for (const id of extractIdentifiers(f.content)) {
@@ -256,10 +257,11 @@ function buildSystemPrompt(
         ? `\n\nKNOWN IDENTIFIERS (use EXACT casing when the speaker says something matching):\n${[...allIdentifiers].join(", ")}`
         : "";
 
-    const fileSections = vibeCodeFiles.map(
-      (f) => `--- ${f.label} (${f.filePath}) ---\n${f.content}`,
-    );
-    vibeCodeSection = `${identifierList}\n\nSource file context:\n${fileSections.join("\n\n")}`;
+    // Include file names for context awareness without the full contents
+    const fileList = vibeCodeFiles.map((f) => `- ${f.label} (${f.filePath})`);
+    const fileListSection = `\n\nActive source files:\n${fileList.join("\n")}`;
+
+    vibeCodeSection = `${identifierList}${fileListSection}`;
   }
 
   return `${baseRules}\n${style}${dictionarySection}${snippetSection}${vibeCodeSection}\n\nOutput the cleaned text only. Nothing else.`;
@@ -312,6 +314,16 @@ export async function cleanupGhostedText(
   const elapsed = Math.round(performance.now() - t0);
 
   const cleaned = result.text?.trim();
+
+  // Log token usage for monitoring
+  const { inputTokens, outputTokens } = result.usage ?? {};
+  const total =
+    inputTokens != null && outputTokens != null
+      ? inputTokens + outputTokens
+      : undefined;
+  console.log(
+    `[ghosttype] 💸 token usage       → prompt: ${inputTokens ?? "?"}, completion: ${outputTokens ?? "?"}, total: ${total ?? "?"}`,
+  );
   console.log(
     "[ghosttype] ai cleanup       →",
     cleaned ?? "(empty)",
