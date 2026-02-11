@@ -75,6 +75,13 @@ export type GhosttypeSettingsUpdate = {
   editorFileTagging?: boolean;
 };
 
+export type TokenUsageInfo = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCost: number;
+};
+
 export type SessionEvent = {
   wordCount: number;
   durationMs: number;
@@ -84,6 +91,7 @@ export type SessionEvent = {
   cleanedText: string;
   appName?: string;
   timestamp: number;
+  tokenUsage?: TokenUsageInfo;
 };
 
 export type LocalTranscript = {

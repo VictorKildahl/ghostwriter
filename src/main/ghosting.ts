@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { cleanupGhostedText } from "./aiGateway";
+import { cleanupGhostedText, type TokenUsageInfo } from "./aiGateway";
 import {
   detectAppCategory,
   getFrontmostAppName,
@@ -63,6 +63,7 @@ export class GhostingController {
       rawText: string;
       cleanedText: string;
       appName: string;
+      tokenUsage?: TokenUsageInfo;
     }) => void,
   ) {}
 
@@ -150,6 +151,7 @@ export class GhostingController {
         this.getSettings().stylePreferences[this.recordingAppCategory] ??
         "casual";
       let finalText: string;
+      let tokenUsage: TokenUsageInfo | undefined;
       // Track filenames mentioned in speech for @-mention tagging in Cursor.
       // We extract these from the raw speech text — ALL spoken file names,
       // even ones already in auto-detected context — because we want to
@@ -201,7 +203,7 @@ export class GhostingController {
           if (combined.length > 0) vibeCodeFiles = combined;
         }
 
-        finalText = await cleanupGhostedText(
+        const cleanupResult = await cleanupGhostedText(
           rawText,
           aiModel,
           writingStyle,
@@ -209,6 +211,8 @@ export class GhostingController {
           snippets,
           vibeCodeFiles,
         );
+        finalText = cleanupResult.text;
+        tokenUsage = cleanupResult.tokenUsage;
       } else {
         console.log("[ghosttype] ai cleanup skipped");
         finalText = rawText;
@@ -248,6 +252,7 @@ export class GhostingController {
         rawText,
         cleanedText: finalText,
         appName: this.recordingAppName,
+        tokenUsage,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

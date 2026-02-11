@@ -12,6 +12,7 @@ import type {
 
 export function useGhostStats(userId: Id<"users"> | null) {
   const recordSession = useMutation(api.sessions.record);
+  const recordTokenUsage = useMutation(api.tokenUsage.record);
   const deleteSession = useMutation(api.sessions.deleteByTimestamp);
   const [shareTranscripts, setShareTranscripts] = useState(false);
   const [localTranscripts, setLocalTranscripts] = useState<LocalTranscript[]>(
@@ -58,13 +59,24 @@ export function useGhostStats(userId: Id<"users"> | null) {
           : {}),
       });
 
+      // Record token usage if AI cleanup was used
+      if (session.tokenUsage) {
+        await recordTokenUsage({
+          userId,
+          model: session.tokenUsage.model,
+          inputTokens: session.tokenUsage.inputTokens,
+          outputTokens: session.tokenUsage.outputTokens,
+          estimatedCost: session.tokenUsage.estimatedCost,
+        }).catch(() => undefined);
+      }
+
       // Refresh local transcripts after a new session
       window.ghosttype
         ?.getLocalTranscripts()
         .then(setLocalTranscripts)
         .catch(() => undefined);
     },
-    [userId, recordSession, shareTranscripts],
+    [userId, recordSession, recordTokenUsage, shareTranscripts],
   );
 
   // Listen for session complete events from main process

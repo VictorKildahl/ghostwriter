@@ -9,6 +9,36 @@ export type VibeCodeContext = {
   content: string;
 };
 
+export type TokenUsageInfo = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCost: number; // USD
+};
+
+/**
+ * Approximate cost per 1M tokens for models available in the gateway.
+ * Values are in USD. Update these when pricing changes.
+ */
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  "google/gemini-2.0-flash": { input: 0.1, output: 0.4 },
+  "openai/gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "openai/gpt-4.1-nano": { input: 0.1, output: 0.4 },
+};
+
+function estimateCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) return 0;
+  return (
+    (inputTokens / 1_000_000) * pricing.input +
+    (outputTokens / 1_000_000) * pricing.output
+  );
+}
+
 const CLEANUP_BASE_RULES = `You are a transcription cleanup tool. The user message contains raw speech-to-text output. Your ONLY job is to return the cleaned version of that text. Never reply conversationally. Never ask questions. Never refuse. Always return cleaned text.
 
 Cleanup rules:
@@ -269,6 +299,11 @@ function buildSystemPrompt(
 
 const DEFAULT_MODEL = "google/gemini-2.0-flash";
 
+export type CleanupResult = {
+  text: string;
+  tokenUsage: TokenUsageInfo;
+};
+
 export async function cleanupGhostedText(
   text: string,
   model?: string | null,
@@ -276,7 +311,7 @@ export async function cleanupGhostedText(
   dictionary?: DictionaryEntry[],
   snippets?: SnippetEntry[],
   vibeCodeFiles?: VibeCodeContext[],
-): Promise<string> {
+): Promise<CleanupResult> {
   const apiKey =
     process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_AI_API_KEY;
   if (!apiKey) {
@@ -317,12 +352,11 @@ export async function cleanupGhostedText(
 
   // Log token usage for monitoring
   const { inputTokens, outputTokens } = result.usage ?? {};
-  const total =
-    inputTokens != null && outputTokens != null
-      ? inputTokens + outputTokens
-      : undefined;
+  const safeInput = inputTokens ?? 0;
+  const safeOutput = outputTokens ?? 0;
+  const cost = estimateCost(selectedModel, safeInput, safeOutput);
   console.log(
-    `[ghosttype] 💸 token usage       → prompt: ${inputTokens ?? "?"}, completion: ${outputTokens ?? "?"}, total: ${total ?? "?"}`,
+    `[ghosttype] 💸 token usage       → prompt: ${safeInput}, completion: ${safeOutput}, total: ${safeInput + safeOutput}, est. cost: $${cost.toFixed(6)}`,
   );
   console.log(
     "[ghosttype] ai cleanup       →",
@@ -334,5 +368,13 @@ export async function cleanupGhostedText(
     throw new Error("Vercel AI Gateway returned empty ghosted text.");
   }
 
-  return cleaned;
+  return {
+    text: cleaned,
+    tokenUsage: {
+      model: selectedModel,
+      inputTokens: safeInput,
+      outputTokens: safeOutput,
+      estimatedCost: cost,
+    },
+  };
 }

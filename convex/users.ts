@@ -48,7 +48,7 @@ export const updatePreferences = mutation({
         personal: v.string(),
         work: v.string(),
         email: v.string(),
-        code: v.string(),
+        code: v.optional(v.string()),
         other: v.string(),
       }),
     ),

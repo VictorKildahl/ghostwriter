@@ -13,6 +13,7 @@ import type * as dictionary from "../dictionary.js";
 import type * as sessions from "../sessions.js";
 import type * as snippets from "../snippets.js";
 import type * as stats from "../stats.js";
+import type * as tokenUsage from "../tokenUsage.js";
 import type * as users from "../users.js";
 
 import type {
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   sessions: typeof sessions;
   snippets: typeof snippets;
   stats: typeof stats;
+  tokenUsage: typeof tokenUsage;
   users: typeof users;
 }>;
 

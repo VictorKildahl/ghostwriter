@@ -14,7 +14,7 @@ export default defineSchema({
         personal: v.string(),
         work: v.string(),
         email: v.string(),
-        code: v.string(),
+        code: v.optional(v.string()),
         other: v.string(),
       }),
     ),
@@ -62,4 +62,16 @@ export default defineSchema({
     expansion: v.string(),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  tokenUsage: defineTable({
+    userId: v.id("users"),
+    model: v.string(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    estimatedCost: v.optional(v.number()), // USD
+    timestamp: v.number(),
+    date: v.string(), // "YYYY-MM-DD"
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_date", ["userId", "date"]),
 });
