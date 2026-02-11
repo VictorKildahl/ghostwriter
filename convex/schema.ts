@@ -19,6 +19,12 @@ export default defineSchema({
       }),
     ),
     createdAt: v.number(),
+    // Running token usage totals (updated on every AI call)
+    totalTokens: v.optional(v.number()),
+    totalInputTokens: v.optional(v.number()),
+    totalOutputTokens: v.optional(v.number()),
+    totalAiCost: v.optional(v.number()), // USD
+    totalAiCalls: v.optional(v.number()),
   })
     .index("by_email", ["email"])
     .index("by_deviceId", ["deviceId"]),

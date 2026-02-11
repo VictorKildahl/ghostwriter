@@ -25,6 +25,19 @@ export const record = mutation({
       timestamp: now,
       date,
     });
+
+    // Update running totals on the user document
+    const user = await ctx.db.get(userId);
+    if (user) {
+      const cost = estimatedCost ?? 0;
+      await ctx.db.patch(userId, {
+        totalInputTokens: (user.totalInputTokens ?? 0) + inputTokens,
+        totalOutputTokens: (user.totalOutputTokens ?? 0) + outputTokens,
+        totalTokens: (user.totalTokens ?? 0) + inputTokens + outputTokens,
+        totalAiCost: (user.totalAiCost ?? 0) + cost,
+        totalAiCalls: (user.totalAiCalls ?? 0) + 1,
+      });
+    }
   },
 });
 
