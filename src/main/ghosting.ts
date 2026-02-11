@@ -218,10 +218,10 @@ export class GhostingController {
 
       // Also scan the AI-cleaned output for file references (the AI may
       // have normalised a spoken filename that Whisper mangled).
-      const cursorFileTagging = this.getSettings().cursorFileTagging;
+      const editorFileTagging = this.getSettings().editorFileTagging;
       let allFileRefs: string[] = [];
 
-      if (cursorFileTagging) {
+      if (editorFileTagging) {
         const outputFileRefs = extractFileReferences(finalText);
         allFileRefs = [...new Set([...mentionedFileNames, ...outputFileRefs])];
         if (allFileRefs.length !== mentionedFileNames.length) {

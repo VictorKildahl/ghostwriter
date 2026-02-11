@@ -36,7 +36,7 @@ export type GhosttypeSettings = {
   stylePreferences: StylePreferences;
   overlayDisplayId: number | null;
   vibeCodeEnabled: boolean;
-  cursorFileTagging: boolean;
+  editorFileTagging: boolean;
 };
 
 export type GhosttypeSettingsUpdate = {
@@ -49,7 +49,7 @@ export type GhosttypeSettingsUpdate = {
   stylePreferences?: Partial<StylePreferences>;
   overlayDisplayId?: number | null;
   vibeCodeEnabled?: boolean;
-  cursorFileTagging?: boolean;
+  editorFileTagging?: boolean;
 };
 
 const DEFAULT_SETTINGS: GhosttypeSettings = {
@@ -75,7 +75,7 @@ const DEFAULT_SETTINGS: GhosttypeSettings = {
   },
   overlayDisplayId: null,
   vibeCodeEnabled: false,
-  cursorFileTagging: false,
+  editorFileTagging: false,
 };
 
 const MODIFIER_CODES = new Set([
@@ -373,10 +373,12 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
       ? record.vibeCodeEnabled
       : DEFAULT_SETTINGS.vibeCodeEnabled;
 
-  const cursorFileTagging =
-    typeof record.cursorFileTagging === "boolean"
-      ? record.cursorFileTagging
-      : DEFAULT_SETTINGS.cursorFileTagging;
+  const editorFileTagging =
+    typeof record.editorFileTagging === "boolean"
+      ? record.editorFileTagging
+      : typeof record.cursorFileTagging === "boolean"
+        ? record.cursorFileTagging
+        : DEFAULT_SETTINGS.editorFileTagging;
 
   return {
     autoPaste,
@@ -388,7 +390,7 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
     stylePreferences,
     overlayDisplayId,
     vibeCodeEnabled,
-    cursorFileTagging,
+    editorFileTagging,
   };
 }
 
@@ -437,7 +439,7 @@ export async function updateSettings(
         ? patch.overlayDisplayId
         : current.overlayDisplayId,
     vibeCodeEnabled: patch.vibeCodeEnabled ?? current.vibeCodeEnabled,
-    cursorFileTagging: patch.cursorFileTagging ?? current.cursorFileTagging,
+    editorFileTagging: patch.editorFileTagging ?? current.editorFileTagging,
   };
 
   await saveSettings(next);

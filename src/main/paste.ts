@@ -15,6 +15,11 @@ type GhostedTextOptions = {
 
 /** Cursor's bundle ID */
 const CURSOR_BUNDLE_ID = "com.todesktop.230313mzl4w4u92";
+/** VS Code's bundle ID */
+const VSCODE_BUNDLE_ID = "com.microsoft.VSCode";
+
+/** Bundle IDs that support file tagging in their chat */
+const FILE_TAGGING_BUNDLE_IDS = new Set([CURSOR_BUNDLE_ID, VSCODE_BUNDLE_ID]);
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -89,13 +94,13 @@ function splitTextAroundFileRefs(
  * 2. For file references: types `@`, waits for dropdown, types the filename,
  *    waits, then presses Enter to select from autocomplete
  */
-async function pasteWithFileTags(
+async function pasteWithCursorFileTags(
   text: string,
   fileRefs: string[],
 ): Promise<void> {
   const segments = splitTextAroundFileRefs(text, fileRefs);
   console.log(
-    "[ghosttype] @-mention segments →",
+    "[ghosttype] Cursor @-mention segments →",
     segments.map((s) => `[${s.type}] "${s.value}"`),
   );
 
@@ -142,6 +147,63 @@ async function pasteWithFileTags(
   }
 }
 
+/**
+ * Paste text into VS Code Copilot Chat with proper #file tags.
+ *
+ * Sequence:  type `#` → category picker appears → type `file:` to select
+ * the #file category → file picker opens → paste filename → Tab to accept.
+ * (Enter submits the chat message, so we must use Tab to accept selections.)
+ */
+async function pasteWithVSCodeFileTags(
+  text: string,
+  fileRefs: string[],
+): Promise<void> {
+  const segments = splitTextAroundFileRefs(text, fileRefs);
+  console.log(
+    "[ghosttype] VS Code #file segments →",
+    segments.map((s) => `[${s.type}] "${s.value}"`),
+  );
+
+  const hasFileSegment = segments.some((s) => s.type === "file");
+  if (!hasFileSegment) {
+    clipboard.writeText(text);
+    await delay(40);
+    await runAppleScript(
+      'tell application "System Events" to keystroke "v" using command down',
+    );
+    return;
+  }
+
+  for (const segment of segments) {
+    if (segment.type === "text" && segment.value) {
+      clipboard.writeText(segment.value);
+      await delay(40);
+      await runAppleScript(
+        'tell application "System Events" to keystroke "v" using command down',
+      );
+      await delay(60);
+    } else if (segment.type === "file") {
+      // Type # to trigger VS Code's context picker
+      await runAppleScript('tell application "System Events" to keystroke "#"');
+      await delay(400); // Wait for picker to appear
+
+      // Type the filename using keystrokes (not clipboard paste) so the
+      // picker properly filters and focuses the matched item.
+      const escaped = segment.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      await runAppleScript(
+        `tell application "System Events" to keystroke "${escaped}"`,
+      );
+      await delay(600); // Wait for picker to filter and highlight
+
+      // Press Tab to accept the highlighted file
+      await runAppleScript(
+        'tell application "System Events" to key code 48', // 48 = Tab
+      );
+      await delay(150);
+    }
+  }
+}
+
 export async function applyGhostedText(
   text: string,
   options: GhostedTextOptions = {},
@@ -153,30 +215,32 @@ export async function applyGhostedText(
     return;
   }
 
-  // If we have file references and we're in Cursor, use @-mention paste
+  // If we have file references and we're in a supported editor, use file tagging
   if (
     fileReferences &&
     fileReferences.length > 0 &&
-    bundleId === CURSOR_BUNDLE_ID
+    bundleId &&
+    FILE_TAGGING_BUNDLE_IDS.has(bundleId)
   ) {
-    console.log(
-      "[ghosttype] @-mention paste: refs →",
-      fileReferences,
-      "| bundleId →",
-      bundleId,
-    );
-    await pasteWithFileTags(text, fileReferences);
-    return;
+    if (bundleId === CURSOR_BUNDLE_ID) {
+      console.log("[ghosttype] Cursor @-mention paste: refs →", fileReferences);
+      await pasteWithCursorFileTags(text, fileReferences);
+      return;
+    }
+
+    if (bundleId === VSCODE_BUNDLE_ID) {
+      console.log("[ghosttype] VS Code #file paste: refs →", fileReferences);
+      await pasteWithVSCodeFileTags(text, fileReferences);
+      return;
+    }
   }
 
   // Default: simple clipboard paste
   console.log(
-    "[ghosttype] simple paste (no @-mention): refs →",
+    "[ghosttype] simple paste (no file tags): refs →",
     fileReferences ?? [],
     "| bundleId →",
     bundleId ?? "none",
-    "| isCursor →",
-    bundleId === CURSOR_BUNDLE_ID,
   );
   clipboard.writeText(text);
   await delay(40);

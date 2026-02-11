@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import type { GhosttypeSettings, VibeCodeFile } from "@/types/ghosttype";
 import {
-  AtSign,
   Code2,
   Eye,
   FileCode,
@@ -56,11 +55,11 @@ export function VibeCodeView() {
     }
   }, [settings]);
 
-  const toggleCursorFileTagging = useCallback(async () => {
+  const toggleEditorFileTagging = useCallback(async () => {
     if (!window.ghosttype || !settings) return;
     try {
       const next = await window.ghosttype.updateSettings({
-        cursorFileTagging: !settings.cursorFileTagging,
+        editorFileTagging: !settings.editorFileTagging,
       });
       setSettings(next);
     } catch {
@@ -211,37 +210,36 @@ export function VibeCodeView() {
         </div>
       </div>
 
-      {/* Cursor @-mention file tagging toggle */}
+      {/* Editor file tagging toggle */}
       <div className="mb-6 flex items-center justify-between rounded-xl border border-border bg-sidebar/50 px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
-            <AtSign className="h-4.5 w-4.5 text-blue-600" />
+            <FileCode className="h-4.5 w-4.5 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-ink">
-              Cursor @-file tagging
-            </p>
+            <p className="text-sm font-medium text-ink">Editor file tagging</p>
             <p className="mt-0.5 text-xs text-muted">
-              When you mention a file by name while ghosting in Cursor, it gets
-              inserted as an @-tagged file reference instead of plain text.
+              When you mention a file by name while ghosting, it gets inserted
+              as a tagged file reference — @-mention in Cursor, #file in VS Code
+              Copilot.
             </p>
           </div>
         </div>
         <button
           type="button"
-          aria-pressed={settings?.cursorFileTagging ?? false}
+          aria-pressed={settings?.editorFileTagging ?? false}
           className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
           style={{
-            backgroundColor: settings?.cursorFileTagging
+            backgroundColor: settings?.editorFileTagging
               ? "#6944AE"
               : "#d4d4d4",
           }}
-          onClick={toggleCursorFileTagging}
+          onClick={toggleEditorFileTagging}
         >
           <span
             className={cn(
               "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
-              settings?.cursorFileTagging ? "translate-x-5" : "translate-x-0.5",
+              settings?.editorFileTagging ? "translate-x-5" : "translate-x-0.5",
             )}
           />
         </button>
