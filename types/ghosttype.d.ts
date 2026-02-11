@@ -57,6 +57,7 @@ export type GhosttypeSettings = {
   stylePreferences: StylePreferences;
   overlayDisplayId: number | null;
   vibeCodeEnabled: boolean;
+  cursorFileTagging: boolean;
 };
 
 export type GhosttypeSettingsUpdate = {
@@ -69,6 +70,7 @@ export type GhosttypeSettingsUpdate = {
   stylePreferences?: Partial<StylePreferences>;
   overlayDisplayId?: number | null;
   vibeCodeEnabled?: boolean;
+  cursorFileTagging?: boolean;
 };
 
 export type SessionEvent = {

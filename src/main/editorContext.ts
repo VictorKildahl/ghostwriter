@@ -40,6 +40,37 @@ const EDITOR_STORAGE_DIRS: Record<string, string> = {
 };
 
 const MAX_FILE_BYTES = 6144; // 6 KB per auto-detected file
+const MAX_MENTIONED_FILES = 5; // Max files resolved from speech references
+
+/** Common source file extensions for resolving spoken file references. */
+const SOURCE_EXTENSIONS = [
+  "tsx",
+  "ts",
+  "jsx",
+  "js",
+  "py",
+  "rs",
+  "go",
+  "vue",
+  "svelte",
+  "spec.ts",
+  "css",
+  "scss",
+  "html",
+  "json",
+  "md",
+  "yaml",
+  "yml",
+  "toml",
+  "swift",
+  "kt",
+  "java",
+  "rb",
+  "php",
+  "c",
+  "cpp",
+  "h",
+];
 
 /* ────────────────────────────────────────────────────────────────────
  * 1. Get the frontmost window title via AppleScript
@@ -298,22 +329,123 @@ async function readFileTruncated(filePath: string): Promise<string | null> {
 }
 
 /* ────────────────────────────────────────────────────────────────────
- * 6. Public API: detect the active editor file
+ * 6. Resolve file references mentioned in speech
  * ──────────────────────────────────────────────────────────────────── */
+
+const EXT_PATTERN = SOURCE_EXTENSIONS.join("|");
+
+/**
+ * Extract file references from raw transcription text.
+ * Handles patterns like:
+ *   - "sidebar.tsx"           → sidebar.tsx
+ *   - "sidebar dot tsx"       → sidebar.tsx
+ *   - "sidebar dot TSX"       → sidebar.tsx
+ *   - "ai gateway dot ts"     → aiGateway.ts  (spaces → camelCase attempted)
+ *   - "page dot tsx"          → page.tsx
+ *   - "use-auth.ts"           → use-auth.ts
+ */
+export function extractFileReferences(rawText: string): string[] {
+  const refs: string[] = [];
+  const lower = rawText.toLowerCase();
+
+  // Pattern 1: literal file.ext  (e.g. "sidebar.tsx", "use-auth.ts")
+  const literalRe = new RegExp(
+    `\\b([a-z][a-z0-9._-]*\\.(?:${EXT_PATTERN}))\\b`,
+    "gi",
+  );
+  let m: RegExpExecArray | null;
+  while ((m = literalRe.exec(lower)) !== null) {
+    refs.push(m[1]);
+  }
+
+  // Pattern 2: "name dot ext" spoken form (e.g. "sidebar dot tsx")
+  const dotSpokenRe = new RegExp(
+    `\\b([a-z][a-z0-9 _-]*)\\s+dot\\s+(${EXT_PATTERN})\\b`,
+    "gi",
+  );
+  while ((m = dotSpokenRe.exec(lower)) !== null) {
+    const name = m[1].trim();
+    const ext = m[2].trim();
+    // Convert spaces to camelCase: "ai gateway" → "aiGateway"
+    // or to kebab-case: "use auth" → "use-auth"
+    const camel = name.replace(/\s+(\w)/g, (_, c) => c.toUpperCase());
+    const kebab = name.replace(/\s+/g, "-");
+
+    refs.push(`${camel}.${ext}`);
+    if (kebab !== camel) refs.push(`${kebab}.${ext}`);
+    // Also try the raw joined form: "sidebar" stays "sidebar"
+    const joined = name.replace(/\s+/g, "");
+    if (joined !== camel) refs.push(`${joined}.${ext}`);
+  }
+
+  // Deduplicate
+  return [...new Set(refs)];
+}
+
+/**
+ * Given raw transcription text and a workspace folder, find files
+ * that were mentioned by name in the speech and return their contents.
+ */
+export async function resolveSpokenFileReferences(
+  rawText: string,
+  workspaceFolder: string,
+  excludePaths?: Set<string>,
+): Promise<VibeCodeContext[]> {
+  const refs = extractFileReferences(rawText);
+  if (refs.length === 0) return [];
+
+  console.log("[vibecode] spoken file refs →", refs);
+
+  const results: VibeCodeContext[] = [];
+  const seen = new Set<string>(excludePaths ?? []);
+
+  for (const ref of refs) {
+    if (results.length >= MAX_MENTIONED_FILES) break;
+
+    const filePath = await findFileInWorkspace(workspaceFolder, ref);
+    if (!filePath || seen.has(filePath)) continue;
+    seen.add(filePath);
+
+    const content = await readFileTruncated(filePath);
+    if (!content) continue;
+
+    results.push({
+      filePath,
+      label: `${path.basename(filePath)} (mentioned)`,
+      content,
+    });
+
+    console.log("[vibecode] resolved spoken ref →", filePath);
+  }
+
+  return results;
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * 7. Public API: detect the active editor file
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type EditorDetectionResult = {
+  context: VibeCodeContext[];
+  workspaceFolder: string | null;
+};
 
 /**
  * Automatically detect the currently open file in the frontmost code
- * editor and return its contents as vibe-code context.
+ * editor and return its contents as vibe-code context, plus the
+ * resolved workspace folder (needed for speech file-reference resolution).
  *
- * Returns an empty array if detection fails at any step — this is
+ * Returns empty context if detection fails at any step — this is
  * designed to be best-effort and never block or error.
  */
-export async function detectActiveEditorContext(): Promise<VibeCodeContext[]> {
+export async function detectActiveEditorContext(): Promise<EditorDetectionResult> {
+  const empty: EditorDetectionResult = { context: [], workspaceFolder: null };
+
   const bundleId = getFrontmostBundleId();
-  if (!bundleId || !EDITOR_BUNDLE_IDS.has(bundleId)) return [];
+  if (!bundleId || !EDITOR_BUNDLE_IDS.has(bundleId)) return empty;
 
   const windowTitle = getFrontmostWindowTitle();
-  if (!windowTitle) return [];
+  if (!windowTitle) return empty;
 
   console.log("[vibecode] window title →", windowTitle);
 
@@ -324,7 +456,7 @@ export async function detectActiveEditorContext(): Promise<VibeCodeContext[]> {
 
   console.log("[vibecode] parsed →", parsed);
 
-  if (!parsed.fileName || !parsed.workspaceName) return [];
+  if (!parsed.fileName || !parsed.workspaceName) return empty;
 
   // Resolve workspace folder
   const workspaceFolder = await resolveWorkspaceFolder(
@@ -334,7 +466,7 @@ export async function detectActiveEditorContext(): Promise<VibeCodeContext[]> {
 
   if (!workspaceFolder) {
     console.log("[vibecode] workspace folder not resolved");
-    return [];
+    return empty;
   }
 
   console.log("[vibecode] workspace →", workspaceFolder);
@@ -361,7 +493,7 @@ export async function detectActiveEditorContext(): Promise<VibeCodeContext[]> {
       "Debug Console",
       "Search",
     ]);
-    if (SKIP_TABS.has(fileName)) return [];
+    if (SKIP_TABS.has(fileName)) return empty;
 
     // Try common source file extensions
     const EXTENSIONS = [
@@ -402,20 +534,23 @@ export async function detectActiveEditorContext(): Promise<VibeCodeContext[]> {
 
   if (!filePath) {
     console.log("[vibecode] file not found in workspace");
-    return [];
+    return { context: [], workspaceFolder };
   }
 
   console.log("[vibecode] active file →", filePath);
 
   // Read contents
   const content = await readFileTruncated(filePath);
-  if (!content) return [];
+  if (!content) return { context: [], workspaceFolder };
 
-  return [
-    {
-      filePath,
-      label: `${path.basename(filePath)} (auto-detected)`,
-      content,
-    },
-  ];
+  return {
+    context: [
+      {
+        filePath,
+        label: `${path.basename(filePath)} (active)`,
+        content,
+      },
+    ],
+    workspaceFolder,
+  };
 }

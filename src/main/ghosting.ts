@@ -3,6 +3,7 @@ import { cleanupGhostedText } from "./aiGateway";
 import {
   detectAppCategory,
   getFrontmostAppName,
+  getFrontmostBundleId,
   type AppCategory,
 } from "./appCategory";
 import {
@@ -12,7 +13,11 @@ import {
   type RecordingSession,
 } from "./audio";
 import { loadDictionary } from "./dictionaryStore";
-import { detectActiveEditorContext } from "./editorContext";
+import {
+  detectActiveEditorContext,
+  extractFileReferences,
+  resolveSpokenFileReferences,
+} from "./editorContext";
 import { applyGhostedText } from "./paste";
 import type { GhosttypeSettings } from "./settings";
 import { loadSnippets } from "./snippetStore";
@@ -38,6 +43,7 @@ export class GhostingController {
   private recordingStartTime: number | null = null;
   private recordingAppCategory: AppCategory = "other";
   private recordingAppName: string = "Unknown";
+  private recordingBundleId: string | null = null;
   private pendingStop = false;
   private state: GhostingState = {
     phase: "idle",
@@ -91,6 +97,7 @@ export class GhostingController {
       this.recordingStartTime = Date.now();
       this.recordingAppCategory = detectAppCategory();
       this.recordingAppName = getFrontmostAppName();
+      this.recordingBundleId = getFrontmostBundleId();
       this.setState({ phase: "recording", error: null });
 
       session.process.once("error", (error) => {
@@ -143,6 +150,17 @@ export class GhostingController {
         this.getSettings().stylePreferences[this.recordingAppCategory] ??
         "casual";
       let finalText: string;
+      // Track filenames mentioned in speech for @-mention tagging in Cursor.
+      // We extract these from the raw speech text — ALL spoken file names,
+      // even ones already in auto-detected context — because we want to
+      // create @-mention tags for them in the output.
+      const mentionedFileNames = extractFileReferences(rawText);
+      console.log(
+        "[ghosttype] file refs from speech →",
+        mentionedFileNames,
+        "| bundleId →",
+        this.recordingBundleId,
+      );
 
       if (aiCleanup) {
         const dictionary = await loadDictionary();
@@ -155,15 +173,31 @@ export class GhostingController {
 
         if (vibeCodeEnabled && isCodeApp) {
           // Auto-detect the currently open file in the editor
-          const autoContext = await detectActiveEditorContext();
+          const { context: autoContext, workspaceFolder } =
+            await detectActiveEditorContext();
           // Load manually pinned files
           const pinnedContext = await readVibeCodeFileContents();
+
           // Merge: auto-detected first, then pinned (dedup by filePath)
           const combined = [...autoContext];
-          const autoPaths = new Set(autoContext.map((f) => f.filePath));
+          const seenPaths = new Set(autoContext.map((f) => f.filePath));
           for (const pinned of pinnedContext) {
-            if (!autoPaths.has(pinned.filePath)) combined.push(pinned);
+            if (!seenPaths.has(pinned.filePath)) {
+              combined.push(pinned);
+              seenPaths.add(pinned.filePath);
+            }
           }
+
+          // Resolve files mentioned by name in the speech
+          if (workspaceFolder) {
+            const spokenRefs = await resolveSpokenFileReferences(
+              rawText,
+              workspaceFolder,
+              seenPaths,
+            );
+            combined.push(...spokenRefs);
+          }
+
           if (combined.length > 0) vibeCodeFiles = combined;
         }
 
@@ -181,7 +215,28 @@ export class GhostingController {
       }
 
       this.setState({ lastGhostedText: finalText, phase: "idle" });
-      await applyGhostedText(finalText, { autoPaste });
+
+      // Also scan the AI-cleaned output for file references (the AI may
+      // have normalised a spoken filename that Whisper mangled).
+      const cursorFileTagging = this.getSettings().cursorFileTagging;
+      let allFileRefs: string[] = [];
+
+      if (cursorFileTagging) {
+        const outputFileRefs = extractFileReferences(finalText);
+        allFileRefs = [...new Set([...mentionedFileNames, ...outputFileRefs])];
+        if (allFileRefs.length !== mentionedFileNames.length) {
+          console.log(
+            "[ghosttype] additional refs from AI output →",
+            outputFileRefs,
+          );
+        }
+      }
+
+      await applyGhostedText(finalText, {
+        autoPaste,
+        fileReferences: allFileRefs,
+        bundleId: this.recordingBundleId,
+      });
 
       // Notify about the completed session for stats tracking
       const wordCount = finalText.split(/\s+/).filter(Boolean).length;

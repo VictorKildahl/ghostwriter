@@ -3,10 +3,12 @@
 import { cn } from "@/lib/utils";
 import type { GhosttypeSettings, VibeCodeFile } from "@/types/ghosttype";
 import {
+  AtSign,
   Code2,
   Eye,
   FileCode,
   FolderOpen,
+  MessageSquare,
   Pin,
   Plus,
   Trash2,
@@ -47,6 +49,18 @@ export function VibeCodeView() {
     try {
       const next = await window.ghosttype.updateSettings({
         vibeCodeEnabled: !settings.vibeCodeEnabled,
+      });
+      setSettings(next);
+    } catch {
+      // ignore
+    }
+  }, [settings]);
+
+  const toggleCursorFileTagging = useCallback(async () => {
+    if (!window.ghosttype || !settings) return;
+    try {
+      const next = await window.ghosttype.updateSettings({
+        cursorFileTagging: !settings.cursorFileTagging,
       });
       setSettings(next);
     } catch {
@@ -127,6 +141,13 @@ export function VibeCodeView() {
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-ink/70">
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-accent" />
+              <span>
+                <strong>Voice tagging:</strong> say a filename while speaking
+                (e.g. &quot;sidebar dot tsx&quot;) and it gets pulled in
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-ink/70">
               <Pin className="h-3.5 w-3.5 shrink-0 text-accent" />
               <span>
                 <strong>Pinned files:</strong> always included as context (e.g.
@@ -188,6 +209,42 @@ export function VibeCodeView() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Cursor @-mention file tagging toggle */}
+      <div className="mb-6 flex items-center justify-between rounded-xl border border-border bg-sidebar/50 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+            <AtSign className="h-4.5 w-4.5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-ink">
+              Cursor @-file tagging
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              When you mention a file by name while ghosting in Cursor, it gets
+              inserted as an @-tagged file reference instead of plain text.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-pressed={settings?.cursorFileTagging ?? false}
+          className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+          style={{
+            backgroundColor: settings?.cursorFileTagging
+              ? "#6944AE"
+              : "#d4d4d4",
+          }}
+          onClick={toggleCursorFileTagging}
+        >
+          <span
+            className={cn(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+              settings?.cursorFileTagging ? "translate-x-5" : "translate-x-0.5",
+            )}
+          />
+        </button>
       </div>
 
       {/* Pinned files section */}
@@ -261,10 +318,11 @@ export function VibeCodeView() {
         <p className="text-xs leading-relaxed text-ink/70">
           <span className="font-semibold text-accent">How it works:</span> When
           you ghost in a code editor, GhostWriter (1) auto-detects your active
-          file from the editor window title, and (2) loads any pinned files. All
-          context is sent to the AI cleanup step so it can resolve your variable
-          names, function signatures, imports, and types — so &quot;use
-          state&quot; becomes{" "}
+          file from the editor window title, (2) scans your speech for file
+          mentions like &quot;sidebar dot tsx&quot; and pulls those in too, and
+          (3) loads any pinned files. All context is sent to the AI cleanup step
+          so it can resolve your variable names, function signatures, imports,
+          and types — so &quot;use state&quot; becomes{" "}
           <code className="ghosttype-code rounded bg-white px-1.5 py-0.5 text-[11px]">
             useState
           </code>{" "}
