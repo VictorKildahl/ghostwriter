@@ -6,11 +6,17 @@ import {
   Menu,
   nativeImage,
   screen,
+  shell,
   Tray,
 } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { uIOhook } from "uiohook-napi";
+import {
+  normalizeTranscriptionLanguageSelection,
+  VISIBLE_TRANSCRIPTION_LANGUAGES,
+  type SelectableTranscriptionLanguage,
+} from "../../types/languages";
 import { AI_MODEL_OPTIONS } from "../../types/models";
 import {
   getDefaultInputDeviceName,
@@ -56,6 +62,7 @@ import {
   removeVibeCodeFile,
   type VibeCodeFile,
 } from "./vibeCodeStore";
+import { startWhisperServer, stopWhisperServer } from "./whisper";
 
 function loadEnvFile() {
   const root = app.isPackaged ? process.resourcesPath : app.getAppPath();
@@ -131,9 +138,10 @@ function createMainWindow() {
     },
   });
 
-  win.on("close", () => {
-    isQuitting = true;
-    app.quit();
+  win.on("close", (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    win.hide();
   });
 
   win.loadURL(resolveRendererUrl());
@@ -234,6 +242,11 @@ let cachedAudioDevices: { index: number; name: string }[] = [];
 let cachedDisplays: { id: number; label: string }[] = [];
 
 function createTray() {
+  if (tray) {
+    rebuildTrayMenu();
+    return;
+  }
+
   trayIcons = {
     idle: loadTrayIcon("ghosty.png"),
     recording: loadTrayIcon("ghosty-talking.png"),
@@ -255,7 +268,6 @@ function createTray() {
   tray.setToolTip("GhostWriter");
 
   // Cache audio devices and displays, then build menu
-  const primary = screen.getPrimaryDisplay();
   cachedDisplays = screen.getAllDisplays().map((d, i) => ({
     id: d.id,
     label: `Display ${i + 1} — ${d.size.width}×${d.size.height}`,
@@ -267,6 +279,45 @@ function createTray() {
       rebuildTrayMenu();
     })
     .catch(() => rebuildTrayMenu());
+}
+
+function destroyTray() {
+  tray?.destroy();
+  tray = null;
+}
+
+function applyTrayVisibility(showInTray: boolean) {
+  if (showInTray) {
+    createTray();
+    return;
+  }
+  destroyTray();
+}
+
+function applyDockVisibility(showInDock: boolean) {
+  if (!app.dock) return;
+  if (showInDock) {
+    app.dock.show();
+  } else {
+    app.dock.hide();
+  }
+}
+
+function applyLoginItemSetting(openAtLogin: boolean) {
+  app.setLoginItemSettings({ openAtLogin });
+}
+
+function applyAppVisibilitySettings(next: GhosttypeSettings) {
+  applyDockVisibility(next.showInDock);
+  applyTrayVisibility(next.showInTray);
+  applyLoginItemSetting(next.openAtLogin);
+}
+
+function playGhostingTransitionSound(kind: "start" | "stop") {
+  shell.beep();
+  if (kind === "stop") {
+    setTimeout(() => shell.beep(), 120);
+  }
 }
 
 function rebuildTrayMenu() {
@@ -328,6 +379,55 @@ function rebuildTrayMenu() {
       },
     }));
 
+  const languageSubmenu: Electron.MenuItemConstructorOptions[] = (() => {
+    const selectedCodes = new Set<string>(
+      currentSettings.transcriptionLanguages,
+    );
+    const allLanguages = VISIBLE_TRANSCRIPTION_LANGUAGES.filter(
+      (l) => l.code !== "auto",
+    );
+    const selected = allLanguages.filter((l) => selectedCodes.has(l.code));
+    const unselected = allLanguages.filter((l) => !selectedCodes.has(l.code));
+
+    const makeItem = (
+      language: (typeof allLanguages)[number],
+    ): Electron.MenuItemConstructorOptions => ({
+      label: `${language.flag}  ${language.label}`,
+      type: "checkbox",
+      checked: selectedCodes.has(language.code),
+      click: async () => {
+        if (!settings) settings = await loadSettings();
+        const current = new Set<string>(settings.transcriptionLanguages);
+        if (current.has(language.code)) {
+          current.delete(language.code);
+        } else {
+          current.add(language.code);
+        }
+        // Ensure at least one language remains selected.
+        if (current.size === 0) current.add(language.code);
+        const nextLanguages = normalizeTranscriptionLanguageSelection([
+          ...current,
+        ]);
+        const primaryLanguage: SelectableTranscriptionLanguage =
+          nextLanguages[0] ?? ("en" as SelectableTranscriptionLanguage);
+        settings = await updateSettings(settings, {
+          transcriptionLanguage:
+            nextLanguages.length > 1 ? "auto" : primaryLanguage,
+          transcriptionLanguages: nextLanguages,
+        });
+        notifySettings(settings);
+        rebuildTrayMenu();
+      },
+    });
+
+    const items: Electron.MenuItemConstructorOptions[] = selected.map(makeItem);
+    if (selected.length > 0 && unselected.length > 0) {
+      items.push({ type: "separator" });
+    }
+    items.push(...unselected.map(makeItem));
+    return items;
+  })();
+
   const displaySubmenu: Electron.MenuItemConstructorOptions[] = [
     {
       label: "Primary display",
@@ -363,6 +463,7 @@ function rebuildTrayMenu() {
     { label: "Open GhostWriter", click: toggleWindow },
     { type: "separator" },
     { label: "Microphone", submenu: micSubmenu },
+    { label: "Languages", submenu: languageSubmenu },
     ...(isAdmin ? [{ label: "AI Model", submenu: modelSubmenu }] : []),
     ...(cachedDisplays.length > 1
       ? [{ label: "Display", submenu: displaySubmenu }]
@@ -427,6 +528,7 @@ function setupIpc(controller: GhostingController) {
         settings = await loadSettings();
       }
       settings = await updateSettings(settings, patch);
+      applyAppVisibilitySettings(settings);
       notifySettings(settings);
       return settings;
     },
@@ -599,9 +701,8 @@ async function commitShortcut(shortcut: GhostingShortcut) {
 }
 
 app.whenReady().then(async () => {
-  // Show in dock like a normal macOS app
+  // Set dock icon for macOS
   if (app.dock) {
-    await app.dock.show();
     const dockIcon = nativeImage.createFromPath(
       resolveAppResourcePath("public/assets", "ghosty-dock.png"),
     );
@@ -649,17 +750,39 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(appMenu);
 
   settings = await loadSettings();
+  applyLoginItemSetting(settings.openAtLogin);
+  applyDockVisibility(settings.showInDock);
 
   // Pre-warm the default input device cache so the first ghosting
   // attempt is instant even when "System default" is selected.
   getDefaultInputDeviceName().catch(() => undefined);
 
+  // Pre-start whisper-server so the model is loaded in memory before
+  // the user's first ghosting attempt (transcription then takes ~35ms).
+  startWhisperServer().catch((err) =>
+    console.error("[whisper] failed to pre-start server:", err),
+  );
+
   mainWindow = createMainWindow();
   overlayWindow = createOverlayWindow();
-  createTray();
+  applyTrayVisibility(settings.showInTray);
+  let lastGhostingPhase: string | null = null;
 
   const controller = new GhostingController(
     (state) => {
+      const currentSettings = settings ?? getDefaultSettings();
+      if (currentSettings.soundEffectsEnabled) {
+        if (state.phase === "recording" && lastGhostingPhase !== "recording") {
+          playGhostingTransitionSound("start");
+        } else if (
+          lastGhostingPhase === "recording" &&
+          state.phase !== "recording"
+        ) {
+          playGhostingTransitionSound("stop");
+        }
+      }
+      lastGhostingPhase = state.phase;
+
       mainWindow?.webContents.send("ghosting:state", state);
       overlayWindow?.webContents.send("overlay:state", state);
       if (state.phase === "recording" || state.phase === "idle") {
@@ -702,6 +825,10 @@ app.whenReady().then(async () => {
       if (currentSettings.autoDictionary && currentSettings.autoPaste) {
         startEditTracking(session.cleanedText);
       }
+    },
+    (level) => {
+      mainWindow?.webContents.send("ghosting:mic-level", level);
+      overlayWindow?.webContents.send("overlay:mic-level", level);
     },
   );
 
@@ -776,7 +903,8 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   isQuitting = true;
   unregisterHotkey?.();
-  tray?.destroy();
+  destroyTray();
+  stopWhisperServer();
   overlayWindow?.destroy();
   overlayWindow = null;
   mainWindow = null;

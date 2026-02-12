@@ -7,9 +7,14 @@ export default defineSchema({
     passwordHash: v.string(),
     salt: v.string(),
     name: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    profileImageUrl: v.optional(v.string()),
     deviceId: v.optional(v.string()),
     isAdmin: v.optional(v.boolean()),
     shareTranscripts: v.optional(v.boolean()),
+    transcriptionLanguage: v.optional(v.string()),
+    transcriptionLanguages: v.optional(v.array(v.string())),
     stylePreferences: v.optional(
       v.object({
         personal: v.string(),
@@ -19,6 +24,10 @@ export default defineSchema({
         other: v.string(),
       }),
     ),
+    planId: v.optional(v.string()),
+    billingCycle: v.optional(v.string()),
+    billingStatus: v.optional(v.string()),
+    nextBillingDate: v.optional(v.number()),
     createdAt: v.number(),
     // Running token usage totals (updated on every AI call)
     totalTokens: v.optional(v.number()),
@@ -82,4 +91,13 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"]),
+
+  problemReports: defineTable({
+    userId: v.id("users"),
+    email: v.optional(v.string()),
+    message: v.string(),
+    details: v.optional(v.string()),
+    createdAt: v.number(),
+    status: v.optional(v.string()),
+  }).index("by_userId", ["userId"]),
 });

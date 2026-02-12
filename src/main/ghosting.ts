@@ -29,10 +29,19 @@ import { transcribeWithWhisper } from "./whisper";
  * non-speech audio as bracketed/parenthesised markers such as
  * `[silence]`, `(clicking)`, `[BLANK_AUDIO]`, `[music]`, etc.
  *
- * This function strips ALL such noise markers and returns only real
- * speech content.  If nothing meaningful remains, returns an empty string
- * so the caller can skip pasting entirely.
+ * `stripNoiseMarkers` removes these bracket/paren tokens and returns
+ * the remaining text (empty string if nothing is left).
+ *
+ * Whisper also hallucinates short stock phrases ("Thank you",
+ * "Merci", "Danke", etc.) when the audio is mostly silence.
+ * The primary defence is an **audio-energy gate** in `stopGhosting`:
+ * after recording stops, we read the WAV file and compute its peak
+ * RMS energy — if it never exceeded a speech threshold we skip
+ * transcription entirely (language-agnostic, duration-agnostic).
+ * `isLikelyHallucination` is a secondary backup that catches edge
+ * cases via word-rate analysis.
  */
+
 function stripNoiseMarkers(text: string): string {
   // Remove any [...] or (...) tokens that Whisper uses for non-speech
   // events.  Common examples: [silence], [BLANK_AUDIO], (clicking),
@@ -44,12 +53,93 @@ function stripNoiseMarkers(text: string): string {
     .trim();
 }
 
-export type GhostingPhase =
-  | "idle"
-  | "recording"
-  | "transcribing"
-  | "cleaning"
-  | "error";
+/**
+ * Secondary heuristic: detects whether a short transcription is likely a
+ * Whisper hallucination based on word-rate.  The primary guard is the
+ * audio-energy gate in stopGhosting (which reads the WAV file and skips
+ * transcription entirely when no speech energy was detected).  This
+ * function acts as a backup for edge cases where background noise was
+ * loud enough to pass the energy threshold but Whisper still hallucinated.
+ *
+ * Works across ALL languages — real speech runs at ~2–3 words/sec;
+ * a handful of words well below that rate from a long-ish recording
+ * means the audio was mostly noise.
+ */
+function isLikelyHallucination(text: string, durationMs: number): boolean {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+
+  // Don't apply word-rate heuristic to short recordings — a quick tap
+  // with a single word is legitimate and the low word count is expected.
+  if (durationMs < 1500) return false;
+
+  const wordsPerSecond = words.length / (durationMs / 1000);
+
+  // ≤ 4 words at under 1.5 words/sec from a 1.5 s+ recording →
+  // almost certainly a hallucination.
+  if (words.length <= 4 && wordsPerSecond < 1.5) return true;
+
+  return false;
+}
+
+/**
+ * Read a 16-bit PCM WAV file and check whether it contains sustained
+ * speech energy — not just a brief transient like a keyboard click.
+ *
+ * Computes RMS energy over 50 ms sliding windows and counts how many
+ * windows exceed a speech threshold.  Real speech produces sustained
+ * energy across many consecutive windows (a single spoken word is
+ * typically 200–500 ms = 4–10 windows).  A keyboard click or tap
+ * produces a sharp transient in at most 1–2 windows.
+ *
+ * Returns `true` if the audio likely contains speech, `false` if it's
+ * just silence / ambient noise / key clicks.
+ *
+ * The WAV is expected to be mono 16 kHz s16le (the format we record).
+ */
+async function wavContainsSpeech(filePath: string): Promise<boolean> {
+  const WINDOW_SAMPLES = 800; // 50 ms at 16 kHz
+  const WAV_HEADER_BYTES = 44;
+  // RMS threshold per window — above typical ambient / mic self-noise
+  // but reachable by even quiet speech.
+  const WINDOW_ENERGY_THRESHOLD = 0.015;
+  // Minimum number of windows that must exceed the threshold.
+  // 3 windows × 50 ms = 150 ms of sustained energy — enough to
+  // confirm a spoken syllable while rejecting brief click transients.
+  const MIN_SPEECH_WINDOWS = 3;
+
+  let buf: Buffer;
+  try {
+    buf = await fs.readFile(filePath);
+  } catch {
+    return false;
+  }
+
+  const pcm = buf.subarray(WAV_HEADER_BYTES);
+  const sampleCount = Math.floor(pcm.length / 2);
+  if (sampleCount === 0) return false;
+
+  let speechWindows = 0;
+
+  for (let start = 0; start < sampleCount; start += WINDOW_SAMPLES) {
+    const end = Math.min(start + WINDOW_SAMPLES, sampleCount);
+    let sumSq = 0;
+    for (let i = start; i < end; i++) {
+      const sample = pcm.readInt16LE(i * 2);
+      sumSq += sample * sample;
+    }
+    const rms = Math.sqrt(sumSq / (end - start)) / 32768;
+    if (rms >= WINDOW_ENERGY_THRESHOLD) speechWindows++;
+
+    // Early exit — once we have enough speech windows, no need to
+    // scan the rest of the file.
+    if (speechWindows >= MIN_SPEECH_WINDOWS) return true;
+  }
+
+  return false;
+}
+
+export type GhostingPhase = "idle" | "recording" | "cleaning" | "error";
 
 export type GhostingState = {
   phase: GhostingPhase;
@@ -85,6 +175,7 @@ export class GhostingController {
       appName: string;
       tokenUsage?: TokenUsageInfo;
     }) => void,
+    private readonly onMicLevel?: (level: number) => void,
   ) {}
 
   getState() {
@@ -97,11 +188,7 @@ export class GhostingController {
   }
 
   async startGhosting() {
-    if (
-      this.state.phase === "recording" ||
-      this.state.phase === "transcribing" ||
-      this.state.phase === "cleaning"
-    ) {
+    if (this.state.phase === "recording" || this.state.phase === "cleaning") {
       return;
     }
 
@@ -113,7 +200,9 @@ export class GhostingController {
     const selectedMic = configured ?? (await getDefaultInputDeviceName());
 
     try {
-      const session = startRecording(selectedMic);
+      const session = startRecording(selectedMic, (level) => {
+        this.onMicLevel?.(level);
+      });
       this.recordingSession = session;
       this.recordingStartTime = Date.now();
 
@@ -131,6 +220,7 @@ export class GhostingController {
 
       session.process.once("error", (error) => {
         this.recordingSession = null;
+        this.onMicLevel?.(0);
         this.setState({ phase: "error", error: error.message });
       });
 
@@ -142,6 +232,7 @@ export class GhostingController {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to start recording";
+      this.onMicLevel?.(0);
       this.setState({ phase: "error", error: message });
     }
   }
@@ -162,18 +253,45 @@ export class GhostingController {
 
     try {
       await stopRecording(session);
-      this.setState({ phase: "transcribing" });
+      this.onMicLevel?.(0);
 
-      const rawText = await transcribeWithWhisper(session.filePath);
+      // Primary guard against Whisper hallucinations: check whether the
+      // recorded audio contains *sustained* speech energy — not just a
+      // brief transient from a keyboard click.  We scan the WAV file in
+      // 50 ms windows and require at least 3 windows (~150 ms) above a
+      // speech-level RMS threshold.  This reliably distinguishes real
+      // spoken words from silence + key-press noise, regardless of
+      // language or recording duration.
+      const hasSpeech = await wavContainsSpeech(session.filePath);
+      if (!hasSpeech) {
+        console.log(
+          "[ghosttype] no sustained speech energy detected, skipping transcription",
+        );
+        this.setState({ phase: "idle", lastRawText: "", lastGhostedText: "" });
+        return;
+      }
+
+      const currentSettings = this.getSettings();
+      const languageForWhisper =
+        currentSettings.transcriptionLanguages.length > 1
+          ? "auto"
+          : currentSettings.transcriptionLanguage;
+      const rawText = await transcribeWithWhisper(
+        session.filePath,
+        languageForWhisper,
+      );
 
       // Strip Whisper noise markers ([silence], (clicking), [BLANK_AUDIO],
-      // etc.) to determine if the recording contained any real speech.
+      // etc.) and check for hallucinated short phrases to determine if the
+      // recording contained any real speech.
       const speechOnly = stripNoiseMarkers(rawText ?? "");
-      if (!speechOnly) {
+      if (!speechOnly || isLikelyHallucination(speechOnly, durationMs)) {
         console.log(
-          "[ghosttype] no speech detected (raw:",
+          "[ghosttype] no real speech detected (raw:",
           JSON.stringify(rawText),
-          "), skipping",
+          ", duration:",
+          durationMs,
+          "ms), skipping",
         );
         this.setState({ phase: "idle", lastRawText: "", lastGhostedText: "" });
         return;
@@ -181,10 +299,9 @@ export class GhostingController {
 
       this.setState({ phase: "cleaning", lastRawText: rawText });
 
-      const { autoPaste, aiCleanup, aiModel } = this.getSettings();
+      const { autoPaste, aiCleanup, aiModel } = currentSettings;
       const writingStyle =
-        this.getSettings().stylePreferences[this.recordingAppCategory] ??
-        "casual";
+        currentSettings.stylePreferences[this.recordingAppCategory] ?? "casual";
       let finalText: string;
       let tokenUsage: TokenUsageInfo | undefined;
       // Track filenames mentioned in speech for @-mention tagging in Cursor.
@@ -204,7 +321,7 @@ export class GhostingController {
         const snippets = await loadSnippets();
 
         // Load vibe code context when in a code editor with vibe code enabled
-        const autoFileDetection = this.getSettings().autoFileDetection;
+        const autoFileDetection = currentSettings.autoFileDetection;
         const isCodeApp = this.recordingAppCategory === "code";
         let vibeCodeFiles = undefined;
 
@@ -253,12 +370,12 @@ export class GhostingController {
         finalText = rawText;
       }
 
-      // Safety net: if the cleaned text is empty or still contains only
-      // noise markers after AI cleanup, there's nothing real to paste.
+      // Safety net: if the cleaned text is empty or still looks like a
+      // hallucination after AI cleanup, there's nothing real to paste.
       const cleanedSpeech = stripNoiseMarkers(finalText);
-      if (!cleanedSpeech) {
+      if (!cleanedSpeech || isLikelyHallucination(cleanedSpeech, durationMs)) {
         console.log(
-          "[ghosttype] cleaned text is empty/noise-only, skipping paste",
+          "[ghosttype] cleaned text is empty/hallucination, skipping paste",
         );
         this.setState({
           phase: "idle",
@@ -272,7 +389,7 @@ export class GhostingController {
 
       // Also scan the AI-cleaned output for file references (the AI may
       // have normalised a spoken filename that Whisper mangled).
-      const editorFileTagging = this.getSettings().editorFileTagging;
+      const editorFileTagging = currentSettings.editorFileTagging;
       let allFileRefs: string[] = [];
 
       if (editorFileTagging) {
@@ -308,6 +425,7 @@ export class GhostingController {
       const message = error instanceof Error ? error.message : "Unknown error";
       this.setState({ phase: "error", error: message });
     } finally {
+      this.onMicLevel?.(0);
       await fs.rm(session.filePath, { force: true });
     }
   }
@@ -324,6 +442,7 @@ export class GhostingController {
     } catch {
       // ignore errors during cancel
     } finally {
+      this.onMicLevel?.(0);
       await fs.rm(session.filePath, { force: true });
     }
 

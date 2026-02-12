@@ -28,19 +28,10 @@
         padding-bottom: 14px;
       }
 
-      /* ─── Idle / tooltip container ─── */
-      #idle-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        cursor: pointer;
-      }
-      #idle-container.hidden {
-        display: none;
-      }
-
+      /* ─── Idle tooltip (shown on hover) ─── */
       #tooltip {
+        position: absolute;
+        bottom: 38px;
         background: rgba(20, 20, 20, 0.92);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
@@ -58,6 +49,7 @@
           opacity 0.2s ease,
           transform 0.2s ease;
         pointer-events: none;
+        z-index: 10;
       }
       #tooltip.visible {
         opacity: 1;
@@ -72,171 +64,324 @@
         font-weight: 600;
       }
 
-      /* Idle pill */
-      #orb {
-        width: 50px;
-        height: 10px;
-        border-radius: 5px;
-        border: 1.5px solid rgba(192, 132, 252, 0.35);
-        background: rgba(20, 20, 20, 0.92);
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
-        transition: all 0.3s ease;
-        cursor: pointer;
-      }
-
-      #idle-container:hover #orb {
-        width: 58px;
-        border-color: rgba(192, 132, 252, 0.7);
-        background: rgba(20, 20, 20, 0.92);
-        box-shadow:
-          0 0 8px rgba(192, 132, 252, 0.3),
-          0 0 20px rgba(192, 132, 252, 0.12);
-        animation: orb-breathe 1.4s ease-in-out infinite;
-      }
-
-      @keyframes orb-breathe {
-        0%,
-        100% {
-          transform: scaleX(1) scaleY(1);
-          box-shadow:
-            0 0 8px rgba(192, 132, 252, 0.3),
-            0 0 20px rgba(192, 132, 252, 0.12);
-        }
-        50% {
-          transform: scaleX(1.06) scaleY(1.15);
-          box-shadow:
-            0 0 12px rgba(192, 132, 252, 0.45),
-            0 0 28px rgba(192, 132, 252, 0.2);
-        }
-      }
-
-      /* ─── Active bar (recording / transcribing / cleaning) ─── */
-      #active-bar {
-        display: none;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 6px;
-        background: rgba(22, 22, 22, 0.94);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
-        padding: 8px 14px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        overflow: hidden;
+      /* ─── The pill (all states) ─── */
+      #pill {
         position: relative;
-        height: 32px;
-        width: 145px;
-        cursor: pointer;
-      }
-      #active-bar.visible {
         display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+          height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+          background 0.3s ease,
+          border-color 0.3s ease,
+          box-shadow 0.3s ease;
       }
-      #active-bar::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
+
+      /* ── Idle state ── */
+      #pill.idle {
+        width: 40px;
+        height: 7px;
+        background: rgba(20, 20, 20, 0.92);
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+      }
+      #pill.idle:hover {
+        width: 46px;
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow:
+          0 0 8px rgba(255, 255, 255, 0.08),
+          0 0 20px rgba(255, 255, 255, 0.04);
+      }
+
+      /* ── Recording state ── */
+      #pill.recording {
+        width: 90px;
+        height: 26px;
+        background: rgba(12, 12, 12, 0.95);
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+          0 4px 24px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      /* ── Cleaning state ── */
+      #pill.cleaning {
+        width: 110px;
+        height: 26px;
+        background: rgba(12, 12, 12, 0.95);
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+          0 4px 24px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      /* ── Error state ── */
+      #pill.error {
+        width: 32px;
+        height: 10px;
+        background: linear-gradient(135deg, #f87171, #dc2626);
+        border: 1.5px solid rgba(248, 113, 113, 0.4);
+        box-shadow: 0 1px 8px rgba(248, 113, 113, 0.3);
+      }
+
+      /* ─── Sound bars container ─── */
+      #bars-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2.5px;
         height: 100%;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          rgba(147, 130, 255, 0.2),
-          transparent
-        );
-        animation: shimmer 1.2s ease-in-out infinite;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      #pill.recording #bars-container,
+      #pill.cleaning #bars-container {
+        opacity: 1;
       }
 
-      /* Ghost icon */
-      #active-ghost {
-        width: 16px;
-        height: 16px;
+      /* ─── Individual sound bar ─── */
+      .bar {
+        width: 2px;
+        height: 2.5px;
+        min-height: 2.5px;
+        border-radius: 1px;
+        background: rgba(255, 255, 255, 0.9);
+        transition: background 0.15s ease;
+      }
+      #pill.recording .bar {
+        background: rgba(255, 255, 255, 0.9);
+      }
+      #pill.cleaning .bar {
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      /* ─── Ghost icon (left side) ─── */
+      #ghost-icon {
+        position: absolute;
+        left: 7px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      #pill.cleaning #ghost-icon {
+        opacity: 1;
+      }
+      #ghost-icon img {
+        width: 14px;
+        height: 14px;
         object-fit: contain;
-        animation: rec-pulse 1.4s ease-in-out infinite;
-        flex-shrink: 0;
-        position: relative;
-        z-index: 1;
       }
 
-      /* Status label */
-      #active-label {
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 11px;
+      /* ─── Spinner (cleaning state) ─── */
+      #spinner {
+        position: absolute;
+        right: 5px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      #pill.cleaning #spinner {
+        opacity: 1;
+      }
+      #spinner svg {
+        width: 15px;
+        height: 15px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ─── "Nothing ghosted" label ─── */
+      #nothing-label {
+        position: absolute;
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 9px;
         font-weight: 500;
         letter-spacing: 0.02em;
         white-space: nowrap;
-        position: relative;
-        z-index: 1;
-        flex: 1;
-        text-align: center;
+        opacity: 0;
+        transition: opacity 0.2s ease;
       }
-
-      /* ─── Error pill ─── */
-      #error-pill {
-        display: none;
-        width: 32px;
-        height: 10px;
-        border-radius: 5px;
-        border: 1.5px solid rgba(248, 113, 113, 0.4);
-        background: linear-gradient(135deg, #f87171, #dc2626);
-        box-shadow: 0 1px 8px rgba(248, 113, 113, 0.3);
-      }
-      #error-pill.visible {
-        display: block;
-      }
-
-      @keyframes rec-pulse {
-        0%,
-        100% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.05);
-        }
-      }
-
-      @keyframes shimmer {
-        0% {
-          left: -100%;
-        }
-        100% {
-          left: 200%;
-        }
+      #nothing-label.visible {
+        opacity: 1;
       }
     </style>
   </head>
   <body>
-    <!-- Idle state: small pill + hover tooltip -->
-    <div id="idle-container">
-      <div id="tooltip">
-        <span class="key">Click or hold </span>
-        <span class="shortcut" id="shortcut-label">…</span>
-        <span class="key"> to start ghosting</span>
-        <!-- <span id="toggle-hint"></span> -->
+    <div id="tooltip">
+      <span class="key">Click or hold </span>
+      <span class="shortcut" id="shortcut-label">…</span>
+      <span class="key"> to start ghosting</span>
+    </div>
+
+    <div id="pill" class="idle">
+      <div id="ghost-icon">
+        <img src="../public/assets/ghosty.png" alt="" />
       </div>
-      <div id="orb"></div>
+      <div id="bars-container"></div>
+      <div id="spinner">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle
+            cx="12"
+            cy="12"
+            r="9.5"
+            stroke="rgba(255,255,255,0.9)"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-dasharray="44 60"
+          />
+        </svg>
+      </div>
+      <span id="nothing-label"></span>
     </div>
-
-    <!-- Active state: ghosting / transcribing / cleaning -->
-    <div id="active-bar">
-      <img id="active-ghost" src="ghosty-talking.png" alt="" />
-      <span id="active-label">Ghosting…</span>
-    </div>
-
-    <!-- Error state: red pill -->
-    <div id="error-pill"></div>
 
     <script>
-      const idleContainer = document.getElementById("idle-container");
       const tooltip = document.getElementById("tooltip");
       const shortcutLabel = document.getElementById("shortcut-label");
-      const toggleHint = document.getElementById("toggle-hint");
-      const activeBar = document.getElementById("active-bar");
-      const activeLabel = document.getElementById("active-label");
-      const errorPill = document.getElementById("error-pill");
+      const pill = document.getElementById("pill");
+      const barsContainer = document.getElementById("bars-container");
+      const nothingLabel = document.getElementById("nothing-label");
 
-      let hasToggleShortcut = false;
+      /* ── Create the sound bars ── */
+      const NUM_BARS = 9;
+      const bars = [];
+      for (let i = 0; i < NUM_BARS; i++) {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        barsContainer.appendChild(bar);
+        bars.push(bar);
+      }
+
+      let currentPhase = "idle";
+      let nothingHeardTimer = null;
+      let micLevelTarget = 0;
+      let micLevelSmooth = 0;
+
+      /* ── Smooth per-bar levels for organic feel ── */
+      const barLevels = new Array(NUM_BARS).fill(0);
+      const barTargets = new Array(NUM_BARS).fill(0);
+
+      /* Bar distribution weights — center bars react more */
+      const barWeights = [];
+      for (let i = 0; i < NUM_BARS; i++) {
+        const center = (NUM_BARS - 1) / 2;
+        const dist = Math.abs(i - center) / center; // 0 at center, 1 at edges
+        barWeights.push(1 - dist * 0.6); // center = 1.0, edges = 0.4
+      }
+
+      /* ── Animation loop ── */
+      function animate() {
+        // Smooth the overall mic level
+        const attackAlpha = micLevelTarget > micLevelSmooth ? 0.35 : 0.15;
+        micLevelSmooth += (micLevelTarget - micLevelSmooth) * attackAlpha;
+
+        if (currentPhase === "recording") {
+          // Binary threshold: any audible input → big bars
+          const heard = micLevelSmooth > 0.01;
+
+          for (let i = 0; i < NUM_BARS; i++) {
+            if (heard) {
+              // Animate big with organic jitter
+              const jitter = 0.55 + Math.random() * 0.45;
+              barTargets[i] = barWeights[i] * jitter;
+            } else {
+              barTargets[i] = 0;
+            }
+          }
+        } else {
+          // Not recording — bars settle to minimum
+          for (let i = 0; i < NUM_BARS; i++) {
+            barTargets[i] = 0;
+          }
+        }
+
+        // Smooth each bar individually
+        const minH = 2.5;
+        const maxH = 18;
+        for (let i = 0; i < NUM_BARS; i++) {
+          const alpha = barTargets[i] > barLevels[i] ? 0.3 : 0.15;
+          barLevels[i] += (barTargets[i] - barLevels[i]) * alpha;
+          const h = minH + barLevels[i] * (maxH - minH);
+          bars[i].style.height = h + "px";
+        }
+
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      /* ── Mic level handler ── */
+      function applyMicLevel(level) {
+        micLevelTarget = Math.max(0, Math.min(1, Number(level) || 0));
+      }
+
+      /* ── State handler ── */
+      function applyState(state) {
+        if (!state) return;
+        const phase = state.phase;
+        currentPhase = phase;
+        console.log("[overlay] state:", phase);
+
+        // Clear pending "nothing heard" timer
+        if (nothingHeardTimer) {
+          clearTimeout(nothingHeardTimer);
+          nothingHeardTimer = null;
+        }
+
+        // Hide nothing label
+        nothingLabel.classList.remove("visible");
+
+        // Detect blank audio: was active, now idle, no text
+        const wasActive =
+          pill.classList.contains("recording") ||
+          pill.classList.contains("cleaning");
+        const isBlank =
+          wasActive &&
+          phase === "idle" &&
+          !state.lastGhostedText &&
+          !state.lastRawText;
+
+        if (isBlank) {
+          micLevelTarget = 0;
+          pill.className = "idle";
+          barsContainer.style.opacity = "";
+          return;
+        }
+
+        // Set pill class to current phase
+        pill.className = phase; // "idle" | "recording" | "cleaning" | "error"
+
+        if (phase !== "recording") {
+          micLevelTarget = 0;
+        }
+
+        // Restore bars opacity
+        barsContainer.style.opacity = "";
+      }
+
+      /* ── Settings handler ── */
+      function applySettings(settings) {
+        console.log("[overlay] settings:", JSON.stringify(settings.shortcut));
+        shortcutLabel.textContent = settings?.shortcut
+          ? formatShortcut(settings.shortcut)
+          : "";
+      }
 
       function formatKey(key) {
         const map = {
@@ -266,78 +411,6 @@
         return parts.join(" + ");
       }
 
-      let currentPhase = "idle";
-      let nothingHeardTimer = null;
-
-      function applyState(state) {
-        if (!state) return;
-        const phase = state.phase;
-        currentPhase = phase;
-        console.log("[overlay] state:", phase);
-
-        // Clear any pending "nothing heard" timer
-        if (nothingHeardTimer) {
-          clearTimeout(nothingHeardTimer);
-          nothingHeardTimer = null;
-        }
-
-        // Detect blank audio: was active, now idle, no text produced
-        const wasActive = activeBar.classList.contains("visible");
-        const isBlank =
-          wasActive &&
-          phase === "idle" &&
-          !state.lastGhostedText &&
-          !state.lastRawText;
-
-        if (isBlank) {
-          activeLabel.textContent = "Nothing ghosted";
-          // Keep bar visible briefly, then hide
-          nothingHeardTimer = setTimeout(() => {
-            activeBar.classList.remove("visible");
-            idleContainer.classList.remove("hidden");
-            nothingHeardTimer = null;
-          }, 1500);
-          return;
-        }
-
-        // Toggle visibility of each element
-        const isActive =
-          phase === "recording" ||
-          phase === "transcribing" ||
-          phase === "cleaning";
-        idleContainer.classList.toggle("hidden", phase !== "idle");
-        activeBar.classList.toggle("visible", isActive);
-        errorPill.classList.toggle("visible", phase === "error");
-
-        if (phase === "recording") activeLabel.textContent = "Ghosting…";
-        if (phase === "transcribing") activeLabel.textContent = "Ghosting…";
-        if (phase === "cleaning") activeLabel.textContent = "Cleaning up…";
-      }
-
-      function applySettings(settings) {
-        console.log("[overlay] settings:", JSON.stringify(settings.shortcut));
-        shortcutLabel.textContent = settings?.shortcut
-          ? formatShortcut(settings.shortcut)
-          : "";
-
-        // Track whether a toggle shortcut is configured
-        hasToggleShortcut = !!(
-          settings.toggleShortcut && settings.toggleShortcut.key
-        );
-
-        // Update the toggle hint in the tooltip
-        if (hasToggleShortcut) {
-          toggleHint.innerHTML =
-            ' <span class="key"> · toggle </span>' +
-            '<span class="shortcut">' +
-            formatShortcut(settings.toggleShortcut) +
-            "</span>" +
-            ' <span class="key"> · or click</span>';
-        } else {
-          toggleHint.innerHTML = ' <span class="key"> · or click</span>';
-        }
-      }
-
       // Pull initial values on load
       window.electronOverlay?.getState().then(applyState);
       window.electronOverlay?.getSettings().then(applySettings);
@@ -345,28 +418,22 @@
       // Subscribe to future pushes
       window.electronOverlay?.onState(applyState);
       window.electronOverlay?.onSettings(applySettings);
+      window.electronOverlay?.onMicLevel(applyMicLevel);
 
-      // Hover on idle pill — show tooltip (only when idle)
-      idleContainer.addEventListener("mouseenter", () => {
-        if (currentPhase !== "idle") return;
-        tooltip.classList.add("visible");
+      // Hover — show tooltip (only when idle)
+      pill.addEventListener("mouseenter", () => {
+        if (currentPhase === "idle") tooltip.classList.add("visible");
       });
-      idleContainer.addEventListener("mouseleave", () => {
-        if (currentPhase !== "idle") return;
+      pill.addEventListener("mouseleave", () => {
         tooltip.classList.remove("visible");
       });
 
-      // Click on idle pill → toggle ghosting on
-      idleContainer.addEventListener("click", () => {
-        if (currentPhase !== "idle") return;
-        window.electronOverlay?.toggleGhosting();
-        tooltip.classList.remove("visible");
-      });
-
-      // Click on active bar → toggle ghosting off (only during recording)
-      activeBar.addEventListener("click", () => {
-        if (currentPhase !== "recording") return;
-        window.electronOverlay?.toggleGhosting();
+      // Click on pill — toggle ghosting
+      pill.addEventListener("click", () => {
+        if (currentPhase === "idle" || currentPhase === "recording") {
+          window.electronOverlay?.toggleGhosting();
+          tooltip.classList.remove("visible");
+        }
       });
     </script>
   </body>

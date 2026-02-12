@@ -126,11 +126,18 @@ export function SettingsVoiceView({
 
   const filteredLanguageOptions = useMemo(() => {
     const query = languageSearch.trim().toLowerCase();
-    if (!query) return languageOptions;
-    return languageOptions.filter((language) =>
-      `${language.label} ${language.code}`.toLowerCase().includes(query),
-    );
-  }, [languageOptions, languageSearch]);
+    const base = query
+      ? languageOptions.filter((language) =>
+          `${language.label} ${language.code}`.toLowerCase().includes(query),
+        )
+      : languageOptions;
+
+    // Move selected languages to the top of the list.
+    const selectedSet = new Set(languageSelectionDraft);
+    const selected = base.filter((l) => selectedSet.has(l.code));
+    const unselected = base.filter((l) => !selectedSet.has(l.code));
+    return { selected, unselected };
+  }, [languageOptions, languageSearch, languageSelectionDraft]);
 
   function openLanguagePicker() {
     const activeLanguage =
@@ -371,34 +378,54 @@ export function SettingsVoiceView({
               )}
             >
               <div className="grid grid-cols-3 gap-2">
-                {filteredLanguageOptions.map((language) => {
-                  const selected = languageSelectionDraft.includes(
-                    language.code,
-                  );
-                  return (
-                    <button
-                      key={language.code}
-                      type="button"
-                      disabled={languageAutoDetectDraft}
-                      onClick={() => toggleLanguageSelection(language.code)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition",
-                        languageAutoDetectDraft
-                          ? "cursor-not-allowed border-border bg-sidebar text-muted"
-                          : selected
-                            ? "border-[#9b85ff] bg-[#f0ecff] text-ink"
-                            : "border-border bg-sidebar text-muted hover:cursor-pointer hover:border-accent/40 hover:text-ink",
-                      )}
-                    >
-                      <span className="text-base leading-none">
-                        {language.flag ?? "🌐"}
-                      </span>
-                      <span className="truncate font-medium">
-                        {language.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                {filteredLanguageOptions.selected.map((language) => (
+                  <button
+                    key={language.code}
+                    type="button"
+                    disabled={languageAutoDetectDraft}
+                    onClick={() => toggleLanguageSelection(language.code)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition",
+                      languageAutoDetectDraft
+                        ? "cursor-not-allowed border-border bg-sidebar text-muted"
+                        : "border-[#9b85ff] bg-[#f0ecff] text-ink",
+                    )}
+                  >
+                    <span className="text-base leading-none">
+                      {language.flag ?? "🌐"}
+                    </span>
+                    <span className="truncate font-medium">
+                      {language.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {filteredLanguageOptions.selected.length > 0 &&
+                filteredLanguageOptions.unselected.length > 0 && (
+                  <div className="my-3 border-t border-border" />
+                )}
+              <div className="grid grid-cols-3 gap-2">
+                {filteredLanguageOptions.unselected.map((language) => (
+                  <button
+                    key={language.code}
+                    type="button"
+                    disabled={languageAutoDetectDraft}
+                    onClick={() => toggleLanguageSelection(language.code)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition",
+                      languageAutoDetectDraft
+                        ? "cursor-not-allowed border-border bg-sidebar text-muted"
+                        : "border-border bg-sidebar text-muted hover:cursor-pointer hover:border-accent/40 hover:text-ink",
+                    )}
+                  >
+                    <span className="text-base leading-none">
+                      {language.flag ?? "🌐"}
+                    </span>
+                    <span className="truncate font-medium">
+                      {language.label}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

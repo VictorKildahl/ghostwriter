@@ -24,6 +24,8 @@ import { SettingsPrivacyView } from "./settings-privacy-view";
 import { SettingsSystemView } from "./settings-system-view";
 import { SettingsVoiceView } from "./settings-voice-view";
 
+const BILLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BILLING === "true";
+
 export type SettingsSection =
   | "general"
   | "voice"
@@ -137,7 +139,7 @@ export function SettingsModal({
           />
         );
       case "billing":
-        return <SettingsBillingView userId={userId} />;
+        return BILLING_ENABLED ? <SettingsBillingView userId={userId} /> : null;
       case "privacy":
         return (
           <SettingsPrivacyView
@@ -211,12 +213,14 @@ export function SettingsModal({
                 active={activeSection === "account"}
                 onClick={() => setActiveSection("account")}
               />
-              <SidebarSectionButton
-                icon={CreditCard}
-                label="Plans & Billing"
-                active={activeSection === "billing"}
-                onClick={() => setActiveSection("billing")}
-              />
+              {BILLING_ENABLED && (
+                <SidebarSectionButton
+                  icon={CreditCard}
+                  label="Plans & Billing"
+                  active={activeSection === "billing"}
+                  onClick={() => setActiveSection("billing")}
+                />
+              )}
               <SidebarSectionButton
                 icon={Shield}
                 label="Data & Privacy"

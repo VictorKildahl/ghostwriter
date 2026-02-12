@@ -37,6 +37,12 @@ const api = {
     ipcRenderer.on("overlay:settings", listener);
     return () => ipcRenderer.removeListener("overlay:settings", listener);
   },
+  onMicLevel: (callback: (level: number) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, level: number) =>
+      callback(level);
+    ipcRenderer.on("overlay:mic-level", listener);
+    return () => ipcRenderer.removeListener("overlay:mic-level", listener);
+  },
   setIgnoreMouse: (ignore: boolean) => {
     ipcRenderer.send("overlay:set-ignore-mouse", ignore);
   },
