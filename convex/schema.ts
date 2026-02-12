@@ -8,6 +8,7 @@ export default defineSchema({
     salt: v.string(),
     name: v.optional(v.string()),
     deviceId: v.optional(v.string()),
+    isAdmin: v.optional(v.boolean()),
     shareTranscripts: v.optional(v.boolean()),
     stylePreferences: v.optional(
       v.object({

@@ -9,6 +9,7 @@ type AuthState = {
   userId: Id<"users">;
   email: string;
   name?: string;
+  isAdmin?: boolean;
 };
 
 const STORAGE_KEY = "ghosttype:auth";
@@ -68,15 +69,18 @@ export function useAuth() {
       return;
     }
 
-    // Update local state when the server has fresher data (e.g. name)
+    // Update local state when the server has fresher data (e.g. name, admin)
     if (
       validated &&
-      (auth.name !== validated.name || auth.email !== validated.email)
+      (auth.name !== validated.name ||
+        auth.email !== validated.email ||
+        auth.isAdmin !== validated.isAdmin)
     ) {
       const updated: AuthState = {
         ...auth,
         email: validated.email,
         name: validated.name,
+        isAdmin: validated.isAdmin,
       };
       setAuth(updated);
       saveAuthToStorage(updated);
@@ -139,6 +143,7 @@ export function useAuth() {
         userId: result.userId,
         email: result.email,
         name: result.name,
+        isAdmin: result.isAdmin,
       };
       setAuth(authState);
       saveAuthToStorage(authState);
@@ -156,6 +161,7 @@ export function useAuth() {
     auth,
     loading,
     isAuthenticated: auth !== null,
+    isAdmin: auth?.isAdmin ?? false,
     signUp,
     login,
     logout,

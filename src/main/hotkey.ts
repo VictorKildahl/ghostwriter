@@ -7,7 +7,7 @@ import {
 } from "./settings";
 
 type GhostingHotkeyHandlers = {
-  getShortcut: () => GhostingShortcut;
+  getShortcut: () => GhostingShortcut | null;
   getToggleShortcut: () => GhostingShortcut | null;
   isCaptureActive: () => boolean;
   onCapturePreview: (preview: string) => void;
@@ -105,6 +105,7 @@ export function registerGhostingHotkey({
     // Hold-to-record shortcut
     const shortcut = getShortcut();
     if (
+      shortcut &&
       event.keycode === shortcut.keycode &&
       matchesShortcut(pressed, shortcut) &&
       !isActive
@@ -124,7 +125,7 @@ export function registerGhostingHotkey({
     }
 
     const shortcut = getShortcut();
-    if (event.keycode === shortcut.keycode && isActive) {
+    if (shortcut && event.keycode === shortcut.keycode && isActive) {
       isActive = false;
       onStop();
     }

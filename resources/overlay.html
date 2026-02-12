@@ -315,9 +315,10 @@
       }
 
       function applySettings(settings) {
-        if (!settings?.shortcut) return;
         console.log("[overlay] settings:", JSON.stringify(settings.shortcut));
-        shortcutLabel.textContent = formatShortcut(settings.shortcut);
+        shortcutLabel.textContent = settings?.shortcut
+          ? formatShortcut(settings.shortcut)
+          : "";
 
         // Track whether a toggle shortcut is configured
         hasToggleShortcut = !!(

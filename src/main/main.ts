@@ -92,6 +92,7 @@ let trayIcons: {
   recording: Electron.NativeImage;
 } | null = null;
 let settings: GhosttypeSettings | null = null;
+let isAdmin = false;
 let capturingShortcutTarget: "shortcut" | "toggleShortcut" | null = null;
 let activeMicTest: MicTestSession | null = null;
 
@@ -358,13 +359,11 @@ function rebuildTrayMenu() {
     ),
   ];
 
-  const showModelPicker = process.env.GHOSTTYPE_SHOW_MODEL_PICKER === "true";
-
   const menu = Menu.buildFromTemplate([
     { label: "Open GhostWriter", click: toggleWindow },
     { type: "separator" },
     { label: "Microphone", submenu: micSubmenu },
-    ...(showModelPicker ? [{ label: "AI Model", submenu: modelSubmenu }] : []),
+    ...(isAdmin ? [{ label: "AI Model", submenu: modelSubmenu }] : []),
     ...(cachedDisplays.length > 1
       ? [{ label: "Display", submenu: displaySubmenu }]
       : []),
@@ -393,10 +392,15 @@ function notifyShortcutPreview(preview: string) {
 }
 
 function setupIpc(controller: GhostingController) {
-  // Auth — renderer sends userId so the main process can write to Convex
-  ipcMain.handle("auth:set-user-id", (_event, userId: string | null) => {
-    setUserId(userId);
-  });
+  // Auth — renderer sends userId + admin flag so the main process can write to Convex
+  ipcMain.handle(
+    "auth:set-user-id",
+    (_event, userId: string | null, admin?: boolean) => {
+      setUserId(userId);
+      isAdmin = admin ?? false;
+      rebuildTrayMenu();
+    },
+  );
 
   ipcMain.handle("ghosting:get-state", () => controller.getState());
   ipcMain.handle("ghosting:start", () => controller.startGhosting());
@@ -736,7 +740,7 @@ app.whenReady().then(async () => {
   setupIpc(controller);
 
   unregisterHotkey = registerGhostingHotkey({
-    getShortcut: () => settings?.shortcut ?? getDefaultSettings().shortcut,
+    getShortcut: () => settings?.shortcut ?? null,
     getToggleShortcut: () => settings?.toggleShortcut ?? null,
     isCaptureActive: () => capturingShortcutTarget !== null,
     onCapturePreview: notifyShortcutPreview,

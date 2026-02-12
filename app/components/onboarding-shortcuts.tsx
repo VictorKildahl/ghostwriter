@@ -162,38 +162,61 @@ export function OnboardingShortcuts({
           </p>
         </div>
 
-        {/* Ghosting shortcut */}
+        {/* Ghosting shortcut (hold) */}
         <div className="mb-5">
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium text-ink">Ghosting shortcut</span>
+            <span className="font-medium text-ink">Hold-to-ghost shortcut</span>
             <span className="text-xs text-muted">
-              Hold this shortcut to record, release to stop.
+              Hold down to start ghosting, release to stop.
             </span>
-            <input
-              className="ghosttype-code mt-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              style={
-                shortcutCapture
-                  ? {
-                      borderColor: "#6944AE",
-                      backgroundColor: "rgba(105, 68, 174, 0.1)",
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                className="ghosttype-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                style={
+                  shortcutCapture
+                    ? {
+                        borderColor: "#6944AE",
+                        backgroundColor: "rgba(105, 68, 174, 0.1)",
+                      }
+                    : {}
+                }
+                value={
+                  shortcutCapture
+                    ? capturePreview
+                    : settings?.shortcut
+                      ? formatShortcut(settings.shortcut)
+                      : "Not set"
+                }
+                placeholder="Press shortcut"
+                readOnly
+                onFocus={beginShortcutCapture}
+                onBlur={endShortcutCapture}
+                onMouseDown={(e) => {
+                  if (shortcutCapture) return;
+                  e.preventDefault();
+                  beginShortcutCapture();
+                }}
+              />
+              {settings?.shortcut && !shortcutCapture && (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-muted transition hover:cursor-pointer hover:bg-border/50 hover:text-ink"
+                  onClick={async () => {
+                    if (!window.ghosttype) return;
+                    try {
+                      const next = await window.ghosttype.updateSettings({
+                        shortcut: null,
+                      });
+                      setSettings(next);
+                    } catch {
+                      // ignore
                     }
-                  : {}
-              }
-              value={
-                shortcutCapture
-                  ? capturePreview
-                  : formatShortcut(settings?.shortcut ?? null)
-              }
-              placeholder="Press shortcut"
-              readOnly
-              onFocus={beginShortcutCapture}
-              onBlur={endShortcutCapture}
-              onMouseDown={(e) => {
-                if (shortcutCapture) return;
-                e.preventDefault();
-                beginShortcutCapture();
-              }}
-            />
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </label>
         </div>
 
@@ -201,11 +224,11 @@ export function OnboardingShortcuts({
         <div className="mb-6">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-ink">
-              Toggle shortcut{" "}
+              Toggle-to-ghost shortcut{" "}
               <span className="font-normal text-muted">(optional)</span>
             </span>
             <span className="text-xs text-muted">
-              Press once to start, press again to stop — hands-free ghosting.
+              Press once to start ghosting, press again to stop — hands-free.
             </span>
             <div className="mt-1 flex items-center gap-2">
               <input

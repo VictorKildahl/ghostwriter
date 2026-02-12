@@ -2,6 +2,7 @@ import { app } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { UiohookKey } from "uiohook-napi";
+import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL } from "../../types/models";
 
 export type GhostingShortcut = {
   key: string;
@@ -28,7 +29,7 @@ export type StylePreferences = Record<AppCategory, WritingStyle>;
 
 export type GhosttypeSettings = {
   autoPaste: boolean;
-  shortcut: GhostingShortcut;
+  shortcut: GhostingShortcut | null;
   toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
   aiCleanup: boolean;
@@ -44,7 +45,7 @@ export type GhosttypeSettings = {
 
 export type GhosttypeSettingsUpdate = {
   autoPaste?: boolean;
-  shortcut?: GhostingShortcutInput | GhostingShortcut;
+  shortcut?: GhostingShortcutInput | GhostingShortcut | null;
   toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
   aiCleanup?: boolean;
@@ -71,7 +72,7 @@ const DEFAULT_SETTINGS: GhosttypeSettings = {
   toggleShortcut: null,
   selectedMicrophone: null,
   aiCleanup: true,
-  aiModel: "google/gemini-2.0-flash",
+  aiModel: DEFAULT_AI_MODEL,
   shareTranscripts: false,
   stylePreferences: {
     personal: "casual",
@@ -306,17 +307,22 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
       ? record.autoPaste
       : DEFAULT_SETTINGS.autoPaste;
 
-  const shortcutRaw = record.shortcut as Partial<GhostingShortcut> | undefined;
+  const shortcutRaw = record.shortcut as
+    | Partial<GhostingShortcut>
+    | null
+    | undefined;
   const shortcut =
-    shortcutRaw &&
-    typeof shortcutRaw.key === "string" &&
-    typeof shortcutRaw.keycode === "number" &&
-    typeof shortcutRaw.meta === "boolean" &&
-    typeof shortcutRaw.shift === "boolean" &&
-    typeof shortcutRaw.alt === "boolean" &&
-    typeof shortcutRaw.ctrl === "boolean"
-      ? (shortcutRaw as GhostingShortcut)
-      : DEFAULT_SETTINGS.shortcut;
+    record.shortcut === null
+      ? null
+      : shortcutRaw &&
+          typeof shortcutRaw.key === "string" &&
+          typeof shortcutRaw.keycode === "number" &&
+          typeof shortcutRaw.meta === "boolean" &&
+          typeof shortcutRaw.shift === "boolean" &&
+          typeof shortcutRaw.alt === "boolean" &&
+          typeof shortcutRaw.ctrl === "boolean"
+        ? (shortcutRaw as GhostingShortcut)
+        : DEFAULT_SETTINGS.shortcut;
 
   const selectedMicrophone =
     typeof record.selectedMicrophone === "string"
@@ -329,7 +335,9 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
       : DEFAULT_SETTINGS.aiCleanup;
 
   const aiModel =
-    typeof record.aiModel === "string" && record.aiModel.trim()
+    typeof record.aiModel === "string" &&
+    record.aiModel.trim() &&
+    AI_MODEL_OPTIONS.some((m) => m.id === record.aiModel)
       ? record.aiModel
       : DEFAULT_SETTINGS.aiModel;
 
@@ -456,11 +464,14 @@ export async function updateSettings(
 ): Promise<GhosttypeSettings> {
   const next: GhosttypeSettings = {
     autoPaste: patch.autoPaste ?? current.autoPaste,
-    shortcut: patch.shortcut
-      ? isResolvedShortcut(patch.shortcut)
-        ? patch.shortcut
-        : resolveShortcut(patch.shortcut)
-      : current.shortcut,
+    shortcut:
+      patch.shortcut !== undefined
+        ? patch.shortcut === null
+          ? null
+          : isResolvedShortcut(patch.shortcut)
+            ? patch.shortcut
+            : resolveShortcut(patch.shortcut)
+        : current.shortcut,
     toggleShortcut:
       patch.toggleShortcut !== undefined
         ? patch.toggleShortcut === null

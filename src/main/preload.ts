@@ -14,7 +14,6 @@ import type {
 } from "../../types/ghosttype";
 
 const api = {
-  getShowModelPicker: () => process.env.GHOSTTYPE_SHOW_MODEL_PICKER === "true",
   getState: () =>
     ipcRenderer.invoke("ghosting:get-state") as Promise<GhostingState>,
   startGhosting: () => ipcRenderer.invoke("ghosting:start"),
@@ -158,8 +157,8 @@ const api = {
       );
     };
   },
-  setUserId: (userId: string | null) =>
-    ipcRenderer.invoke("auth:set-user-id", userId) as Promise<void>,
+  setUserId: (userId: string | null, isAdmin?: boolean) =>
+    ipcRenderer.invoke("auth:set-user-id", userId, isAdmin) as Promise<void>,
 };
 
 contextBridge.exposeInMainWorld("ghosttype", api);

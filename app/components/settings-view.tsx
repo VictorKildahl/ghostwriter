@@ -7,13 +7,17 @@ import type {
   DisplayInfo,
   GhosttypeSettings,
 } from "@/types/ghosttype";
-import { AI_MODEL_OPTIONS } from "@/types/models";
+import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL } from "@/types/models";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageLayout } from "./page-layout";
 
 type SettingsError = string | null;
 
-export function SettingsView() {
+type SettingsViewProps = {
+  isAdmin: boolean;
+};
+
+export function SettingsView({ isAdmin }: SettingsViewProps) {
   const [settings, setSettings] = useState<GhosttypeSettings | null>(null);
   const [settingsError, setSettingsError] = useState<SettingsError>(null);
   const [apiReady, setApiReady] = useState(false);
@@ -28,7 +32,6 @@ export function SettingsView() {
   const [defaultDeviceName, setDefaultDeviceName] = useState<string | null>(
     null,
   );
-  const [showModelPicker, setShowModelPicker] = useState(false);
 
   useEffect(() => {
     if (!window.ghosttype) {
@@ -36,8 +39,6 @@ export function SettingsView() {
       return;
     }
     setApiReady(true);
-
-    setShowModelPicker(window.ghosttype.getShowModelPicker());
 
     window.ghosttype
       .getSettings()
@@ -82,6 +83,7 @@ export function SettingsView() {
     shareTranscripts?: boolean;
     overlayDisplayId?: number | null;
     autoDictionary?: boolean;
+    shortcut?: null;
   }) {
     if (!window.ghosttype) return;
     try {
@@ -146,6 +148,21 @@ export function SettingsView() {
     try {
       const next = await window.ghosttype.updateSettings({
         toggleShortcut: null,
+      });
+      setSettings(next);
+      setSettingsError(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save settings.";
+      setSettingsError(message);
+    }
+  }
+
+  async function clearShortcut() {
+    if (!window.ghosttype) return;
+    try {
+      const next = await window.ghosttype.updateSettings({
+        shortcut: null,
       });
       setSettings(next);
       setSettingsError(null);
@@ -352,37 +369,51 @@ export function SettingsView() {
           </button>
         </div>
 
-        {/* Ghosting shortcut */}
+        {/* Ghosting shortcut (hold) */}
         <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-ink">Ghosting shortcut</span>
-            <input
-              className="ghosttype-code rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              style={
-                shortcutCapture
-                  ? {
-                      borderColor: "#6944AE",
-                      backgroundColor: "rgba(105, 68, 174, 0.1)",
-                    }
-                  : {}
-              }
-              value={
-                shortcutCapture
-                  ? capturePreview
-                  : formatShortcut(settings?.shortcut ?? null)
-              }
-              placeholder="Press shortcut"
-              readOnly
-              onFocus={beginShortcutCapture}
-              onBlur={endShortcutCapture}
-              onMouseDown={(event) => {
-                if (shortcutCapture) return;
-                event.preventDefault();
-                beginShortcutCapture();
-              }}
-            />
+            <span className="font-medium text-ink">Hold-to-ghost shortcut</span>
+            <div className="flex items-center gap-2">
+              <input
+                className="ghosttype-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                style={
+                  shortcutCapture
+                    ? {
+                        borderColor: "#6944AE",
+                        backgroundColor: "rgba(105, 68, 174, 0.1)",
+                      }
+                    : {}
+                }
+                value={
+                  shortcutCapture
+                    ? capturePreview
+                    : settings?.shortcut
+                      ? formatShortcut(settings.shortcut)
+                      : "Not set"
+                }
+                placeholder="Press shortcut"
+                readOnly
+                onFocus={beginShortcutCapture}
+                onBlur={endShortcutCapture}
+                onMouseDown={(event) => {
+                  if (shortcutCapture) return;
+                  event.preventDefault();
+                  beginShortcutCapture();
+                }}
+              />
+              {settings?.shortcut && !shortcutCapture && (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-muted hover:text-ink hover:bg-border/50 transition hover:cursor-pointer"
+                  onClick={clearShortcut}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             <span className="text-xs text-muted">
-              Click the field, then press the keys you want to use.
+              Hold down this shortcut to ghost, release to stop. Click the field
+              to set a new shortcut.
             </span>
           </label>
         </div>
@@ -391,7 +422,7 @@ export function SettingsView() {
         <div className="py-5">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium text-ink">
-              Toggle ghosting shortcut
+              Toggle-to-ghost shortcut
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -544,14 +575,14 @@ export function SettingsView() {
           </div>
         )}
 
-        {/* AI Model */}
-        {showModelPicker && (
+        {/* AI Model (admin only) */}
+        {isAdmin && (
           <div className="py-5">
             <label className="flex flex-col gap-2 text-sm">
               <span className="font-medium text-ink">AI model</span>
               <select
                 className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-40 hover:cursor-pointer"
-                value={settings?.aiModel ?? "google/gemini-2.0-flash"}
+                value={settings?.aiModel ?? DEFAULT_AI_MODEL}
                 disabled={!(settings?.aiCleanup ?? true)}
                 onChange={(event) =>
                   updateSettings({ aiModel: event.target.value })

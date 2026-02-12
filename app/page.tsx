@@ -30,6 +30,7 @@ export default function Page() {
     auth,
     loading: authLoading,
     isAuthenticated,
+    isAdmin,
     signUp,
     login,
     logout,
@@ -42,12 +43,12 @@ export default function Page() {
   // Keep Convex user record in sync with local preferences
   usePreferencesSync(auth?.userId ?? null);
 
-  // Send userId to the main process so it can write to Convex directly
-  // (used by the auto-dictionary feature).
+  // Send userId + admin flag to the main process so it can write to Convex
+  // directly (used by the auto-dictionary feature) and show admin UI in tray.
   useEffect(() => {
     if (!window.ghosttype) return;
-    window.ghosttype.setUserId(auth?.userId ?? null);
-  }, [auth?.userId]);
+    window.ghosttype.setUserId(auth?.userId ?? null, isAdmin);
+  }, [auth?.userId, isAdmin]);
 
   // Wrap signUp so we show consent prompt after a successful registration
   const handleSignUp = useCallback(
@@ -146,7 +147,7 @@ export default function Page() {
           {view === "dictionary" && <DictionaryView userId={auth!.userId} />}
           {view === "snippets" && <SnippetsView userId={auth!.userId} />}
           {view === "vibecode" && <VibeCodeView />}
-          {view === "settings" && <SettingsView />}
+          {view === "settings" && <SettingsView isAdmin={isAdmin} />}
         </div>
       </div>
     </div>

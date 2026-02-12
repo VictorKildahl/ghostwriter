@@ -49,7 +49,7 @@ export type VibeCodeFile = {
 
 export type GhosttypeSettings = {
   autoPaste: boolean;
-  shortcut: GhostingShortcut;
+  shortcut: GhostingShortcut | null;
   toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
   aiCleanup: boolean;
@@ -65,7 +65,7 @@ export type GhosttypeSettings = {
 
 export type GhosttypeSettingsUpdate = {
   autoPaste?: boolean;
-  shortcut?: GhostingShortcutInput | GhostingShortcut;
+  shortcut?: GhostingShortcutInput | GhostingShortcut | null;
   toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
   aiCleanup?: boolean;
@@ -133,7 +133,6 @@ export type DisplayInfo = {
 };
 
 export type GhostTypeAPI = {
-  getShowModelPicker: () => boolean;
   getState: () => Promise<GhostingState>;
   startGhosting: () => Promise<void>;
   stopGhosting: () => Promise<void>;
@@ -172,7 +171,7 @@ export type GhostTypeAPI = {
   onSessionComplete: (callback: (session: SessionEvent) => void) => () => void;
   flushAutoCorrections: () => Promise<AutoCorrection[]>;
   onAutoCorrections: (callback: () => void) => () => void;
-  setUserId: (userId: string | null) => Promise<void>;
+  setUserId: (userId: string | null, isAdmin?: boolean) => Promise<void>;
 };
 
 declare global {

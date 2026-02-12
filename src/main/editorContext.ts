@@ -145,6 +145,12 @@ function parseVSCodeTitle(title: string): ParsedTitle {
       fileName = tabLabel;
     }
 
+    // Strip VS Code tab decorations such as diff view labels:
+    //   "overlay.html (Working Tree) (overlay.html)" → "overlay.html"
+    //   "file.ts (Incoming)" → "file.ts"
+    //   "settings.json (Default Value)" → "settings.json"
+    fileName = fileName.replace(/\s+\(.*\)\s*$/g, "").trim();
+
     return {
       fileName: fileName || null,
       workspaceName: parts[1] || null,

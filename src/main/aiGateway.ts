@@ -1,5 +1,6 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
+import { DEFAULT_AI_MODEL, getModelPricing } from "../../types/models";
 import type { DictionaryEntry } from "./dictionaryStore";
 import type { SnippetEntry } from "./snippetStore";
 
@@ -16,22 +17,12 @@ export type TokenUsageInfo = {
   estimatedCost: number; // USD
 };
 
-/**
- * Approximate cost per 1M tokens for models available in the gateway.
- * Values are in USD. Update these when pricing changes.
- */
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  "google/gemini-2.0-flash": { input: 0.1, output: 0.4 },
-  "openai/gpt-4o-mini": { input: 0.15, output: 0.6 },
-  "openai/gpt-4.1-nano": { input: 0.1, output: 0.4 },
-};
-
 function estimateCost(
   model: string,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const pricing = MODEL_PRICING[model];
+  const pricing = getModelPricing(model);
   if (!pricing) return 0;
   return (
     (inputTokens / 1_000_000) * pricing.input +
@@ -297,8 +288,6 @@ function buildSystemPrompt(
   return `${baseRules}\n${style}${dictionarySection}${snippetSection}${vibeCodeSection}\n\nOutput the cleaned text only. Nothing else.`;
 }
 
-const DEFAULT_MODEL = "google/gemini-2.0-flash";
-
 export type CleanupResult = {
   text: string;
   tokenUsage: TokenUsageInfo;
@@ -330,7 +319,7 @@ export async function cleanupGhostedText(
     apiKey,
   });
 
-  const selectedModel = model || DEFAULT_MODEL;
+  const selectedModel = model || DEFAULT_AI_MODEL;
   console.log("[ghosttype] using model →", selectedModel);
 
   const t0 = performance.now();

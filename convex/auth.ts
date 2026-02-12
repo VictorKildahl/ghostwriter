@@ -86,7 +86,12 @@ export const login = mutation({
       await ctx.db.patch(user._id, { deviceId });
     }
 
-    return { userId: user._id, email: user.email, name: user.name };
+    return {
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+      isAdmin: user.isAdmin ?? false,
+    };
   },
 });
 
@@ -95,6 +100,11 @@ export const validate = query({
   handler: async (ctx, { userId }) => {
     const user = await ctx.db.get(userId);
     if (!user) return null;
-    return { userId: user._id, email: user.email, name: user.name };
+    return {
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+      isAdmin: user.isAdmin ?? false,
+    };
   },
 });
