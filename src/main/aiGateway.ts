@@ -37,6 +37,8 @@ Cleanup rules:
 - Remove stutters and repeated words. Example: "the the component" → "the component"
 - Remove filler sounds: um, uh, hmm, like (when used as filler, not meaning). Example: "so um I think we should uh refactor this" → "so I think we should refactor this"
 - Fix obvious transcription typos of technical terms. Example: "reacked" → "React"
+- Add punctuation and sentence boundaries where clearly implied by the speech.
+- Add paragraph breaks/newlines when the speaker shifts topic or starts a new thought.
 
 Do NOT rephrase, summarize, shorten, or change sentence structure beyond the rules above.
 Preserve all technical terms, casing, file paths, and code symbols exactly.`;
@@ -48,6 +50,8 @@ Cleanup rules:
 - Remove stutters and repeated words.
 - Remove filler sounds: um, uh, hmm, like (when used as filler, not meaning).
 - Fix obvious transcription typos of technical terms.
+- Add punctuation and sentence boundaries where clearly implied by the speech.
+- Add paragraph breaks/newlines when the speaker shifts topic or starts a new thought.
 
 CODE IDENTIFIER RESOLUTION (critical):
 You will be given a list of KNOWN IDENTIFIERS extracted from the user's open source files.

@@ -1,3 +1,8 @@
+import type {
+  SelectableTranscriptionLanguage,
+  TranscriptionLanguage,
+} from "./languages";
+
 export type GhostingPhase =
   | "idle"
   | "recording"
@@ -52,6 +57,12 @@ export type GhosttypeSettings = {
   shortcut: GhostingShortcut | null;
   toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
+  transcriptionLanguage: TranscriptionLanguage;
+  transcriptionLanguages: SelectableTranscriptionLanguage[];
+  soundEffectsEnabled: boolean;
+  showInTray: boolean;
+  showInDock: boolean;
+  openAtLogin: boolean;
   aiCleanup: boolean;
   aiModel: string;
   shareTranscripts: boolean;
@@ -68,6 +79,12 @@ export type GhosttypeSettingsUpdate = {
   shortcut?: GhostingShortcutInput | GhostingShortcut | null;
   toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
+  transcriptionLanguage?: TranscriptionLanguage;
+  transcriptionLanguages?: SelectableTranscriptionLanguage[];
+  soundEffectsEnabled?: boolean;
+  showInTray?: boolean;
+  showInDock?: boolean;
+  openAtLogin?: boolean;
   aiCleanup?: boolean;
   aiModel?: string;
   shareTranscripts?: boolean;

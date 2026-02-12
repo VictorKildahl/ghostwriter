@@ -4,7 +4,10 @@ import { DictionaryView } from "@/app/components/dictionary-view";
 import { Header } from "@/app/components/header";
 import { HomeView } from "@/app/components/home-view";
 import { OnboardingView } from "@/app/components/onboarding-view";
-import { SettingsView } from "@/app/components/settings-view";
+import {
+  SettingsModal,
+  type SettingsSection,
+} from "@/app/components/settings-modal";
 import { Sidebar, type View } from "@/app/components/sidebar";
 import { SnippetsView } from "@/app/components/snippets-view";
 import { StatsView } from "@/app/components/stats-view";
@@ -15,16 +18,20 @@ import { SignUpView } from "@/app/signup-view";
 import { useAuth } from "@/app/use-auth";
 import { useGhostStats } from "@/app/use-ghost-stats";
 import { usePreferencesSync } from "@/app/use-preferences-sync";
+import { WelcomeView } from "@/app/welcome-view";
 import type { StylePreferences } from "@/types/ghosttype";
 import { useCallback, useEffect, useState } from "react";
 
-type AuthView = "login" | "signup";
+type AuthView = "welcome" | "login" | "signup";
 
 export default function Page() {
   const [view, setView] = useState<View>("home");
-  const [authView, setAuthView] = useState<AuthView>("login");
+  const [authView, setAuthView] = useState<AuthView>("welcome");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSection>("general");
 
   const {
     auth,
@@ -81,6 +88,11 @@ export default function Page() {
     [],
   );
 
+  const openSettings = useCallback((section: SettingsSection = "general") => {
+    setSettingsSection(section);
+    setSettingsOpen(true);
+  }, []);
+
   // --------------- Loading ---------------
   if (authLoading) {
     return (
@@ -95,6 +107,14 @@ export default function Page() {
 
   // --------------- Auth gate ---------------
   if (!isAuthenticated) {
+    if (authView === "welcome") {
+      return (
+        <WelcomeView
+          onSignIn={() => setAuthView("login")}
+          onGetStarted={() => setAuthView("signup")}
+        />
+      );
+    }
     return authView === "login" ? (
       <LoginView
         onLogin={login}
@@ -119,15 +139,18 @@ export default function Page() {
       <Sidebar
         currentView={view}
         onNavigate={setView}
+        onOpenSettings={() => openSettings("general")}
         collapsed={sidebarCollapsed}
+        settingsOpen={settingsOpen}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
           userName={auth?.name}
           userEmail={auth?.email}
+          profileImageUrl={auth?.profileImageUrl}
           onLogout={logout}
-          onNavigateToSettings={() => setView("settings")}
+          onNavigateToSettings={() => openSettings("account")}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
         />
@@ -147,9 +170,19 @@ export default function Page() {
           {view === "dictionary" && <DictionaryView userId={auth!.userId} />}
           {view === "snippets" && <SnippetsView userId={auth!.userId} />}
           {view === "vibecode" && <VibeCodeView />}
-          {view === "settings" && <SettingsView isAdmin={isAdmin} />}
         </div>
       </div>
+
+      {settingsOpen && (
+        <SettingsModal
+          isAdmin={isAdmin}
+          userId={auth!.userId}
+          initialSection={settingsSection}
+          onClose={() => setSettingsOpen(false)}
+          onAccountDeleted={logout}
+          onSignOut={logout}
+        />
+      )}
     </div>
   );
 }

@@ -1,16 +1,18 @@
 "use client";
 
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function AccountMenu({
   userName,
   userEmail,
+  profileImageUrl,
   onLogout,
   onNavigateToSettings,
 }: {
   userName?: string;
   userEmail?: string;
+  profileImageUrl?: string;
   onLogout: () => void;
   onNavigateToSettings: () => void;
 }) {
@@ -54,12 +56,20 @@ export function AccountMenu({
       {open && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-border bg-white py-5 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-border bg-white py-3 shadow-lg"
         >
           {/* User info */}
-          <div className="flex items-center gap-3.5 px-5 pb-4">
+          <div className="flex items-center gap-3.5 px-3 pb-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/10 text-base font-semibold text-accent">
-              {initials}
+              {profileImageUrl ? (
+                <img
+                  src={profileImageUrl}
+                  alt="Profile"
+                  className="h-12 w-12 rounded-full object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div className="min-w-0">
               {userName && (
@@ -75,26 +85,26 @@ export function AccountMenu({
             </div>
           </div>
 
-          <div className="border-t border-border px-3 pt-2">
+          <div className="border-t border-border px-3 pt-3">
             <button
               onClick={() => {
                 setOpen(false);
                 onNavigateToSettings();
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted transition hover:bg-gray-50 hover:text-ink"
+              className="flex w-full items-center justify-start gap-2.5 overflow-hidden rounded-lg px-3 py-2 text-left text-sm font-medium text-ink transition-all hover:bg-sidebar hover:cursor-pointer"
             >
-              <Settings className="h-4 w-4" />
-              Settings
+              <User className="h-4 w-4 shrink-0" />
+              <span>Manage account</span>
             </button>
             <button
               onClick={() => {
                 setOpen(false);
                 onLogout();
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted transition hover:bg-gray-50 hover:text-ink"
+              className="flex w-full items-center justify-start gap-2.5 overflow-hidden rounded-lg px-3 py-2 text-left text-sm font-medium text-ink transition-all hover:bg-sidebar hover:cursor-pointer"
             >
-              <LogOut className="h-4 w-4" />
-              Sign out
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span>Sign out</span>
             </button>
           </div>
         </div>

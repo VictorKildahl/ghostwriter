@@ -6,6 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 export function Header({
   userName,
   userEmail,
+  profileImageUrl,
   onLogout,
   onNavigateToSettings,
   sidebarCollapsed,
@@ -13,6 +14,7 @@ export function Header({
 }: {
   userName?: string;
   userEmail?: string;
+  profileImageUrl?: string;
   onLogout: () => void;
   onNavigateToSettings: () => void;
   sidebarCollapsed: boolean;
@@ -36,6 +38,7 @@ export function Header({
         <AccountMenu
           userName={userName}
           userEmail={userEmail}
+          profileImageUrl={profileImageUrl}
           onLogout={onLogout}
           onNavigateToSettings={onNavigateToSettings}
         />

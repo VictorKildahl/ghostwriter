@@ -2,6 +2,15 @@ import { app } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { UiohookKey } from "uiohook-napi";
+import {
+  DEFAULT_TRANSCRIPTION_LANGUAGES,
+  DEFAULT_TRANSCRIPTION_LANGUAGE,
+  TRANSCRIPTION_LANGUAGES,
+  normalizeTranscriptionLanguageSelection,
+  toVisibleTranscriptionLanguageCode,
+  type SelectableTranscriptionLanguage,
+  type TranscriptionLanguage,
+} from "../../types/languages";
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL } from "../../types/models";
 
 export type GhostingShortcut = {
@@ -32,6 +41,12 @@ export type GhosttypeSettings = {
   shortcut: GhostingShortcut | null;
   toggleShortcut: GhostingShortcut | null;
   selectedMicrophone: string | null;
+  transcriptionLanguage: TranscriptionLanguage;
+  transcriptionLanguages: SelectableTranscriptionLanguage[];
+  soundEffectsEnabled: boolean;
+  showInTray: boolean;
+  showInDock: boolean;
+  openAtLogin: boolean;
   aiCleanup: boolean;
   aiModel: string;
   shareTranscripts: boolean;
@@ -48,6 +63,12 @@ export type GhosttypeSettingsUpdate = {
   shortcut?: GhostingShortcutInput | GhostingShortcut | null;
   toggleShortcut?: GhostingShortcutInput | GhostingShortcut | null;
   selectedMicrophone?: string | null;
+  transcriptionLanguage?: TranscriptionLanguage;
+  transcriptionLanguages?: SelectableTranscriptionLanguage[];
+  soundEffectsEnabled?: boolean;
+  showInTray?: boolean;
+  showInDock?: boolean;
+  openAtLogin?: boolean;
   aiCleanup?: boolean;
   aiModel?: string;
   shareTranscripts?: boolean;
@@ -71,6 +92,12 @@ const DEFAULT_SETTINGS: GhosttypeSettings = {
   },
   toggleShortcut: null,
   selectedMicrophone: null,
+  transcriptionLanguage: DEFAULT_TRANSCRIPTION_LANGUAGE,
+  transcriptionLanguages: [...DEFAULT_TRANSCRIPTION_LANGUAGES],
+  soundEffectsEnabled: true,
+  showInTray: true,
+  showInDock: true,
+  openAtLogin: false,
   aiCleanup: true,
   aiModel: DEFAULT_AI_MODEL,
   shareTranscripts: false,
@@ -98,6 +125,10 @@ const MODIFIER_CODES = new Set([
   "MetaLeft",
   "MetaRight",
 ]);
+
+const TRANSCRIPTION_LANGUAGE_CODES = new Set(
+  TRANSCRIPTION_LANGUAGES.map((lang) => lang.code),
+);
 
 const MODIFIER_KEYCODES: Set<number> = new Set([
   UiohookKey.Meta,
@@ -298,6 +329,27 @@ export function shortcutFromKeycode(
   };
 }
 
+function normalizePrimaryLanguage(
+  language: TranscriptionLanguage,
+): SelectableTranscriptionLanguage {
+  return (
+    toVisibleTranscriptionLanguageCode(language) ??
+    DEFAULT_TRANSCRIPTION_LANGUAGES[0]
+  );
+}
+
+function normalizeLanguageSelection(
+  rawCodes: unknown,
+  fallback: SelectableTranscriptionLanguage,
+) {
+  const normalized = normalizeTranscriptionLanguageSelection(
+    Array.isArray(rawCodes)
+      ? rawCodes.filter((value): value is string => typeof value === "string")
+      : undefined,
+  );
+  return normalized.length > 0 ? normalized : [fallback];
+}
+
 function coerceSettings(raw: unknown): GhosttypeSettings {
   if (!raw || typeof raw !== "object") return DEFAULT_SETTINGS;
   const record = raw as Record<string, unknown>;
@@ -328,6 +380,46 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
     typeof record.selectedMicrophone === "string"
       ? record.selectedMicrophone
       : null;
+
+  const rawTranscriptionLanguage =
+    typeof record.transcriptionLanguage === "string" &&
+    TRANSCRIPTION_LANGUAGE_CODES.has(
+      record.transcriptionLanguage as TranscriptionLanguage,
+    )
+      ? (record.transcriptionLanguage as TranscriptionLanguage)
+      : DEFAULT_SETTINGS.transcriptionLanguage;
+  const fallbackTranscriptionLanguage =
+    rawTranscriptionLanguage === "auto"
+      ? DEFAULT_TRANSCRIPTION_LANGUAGES[0]
+      : normalizePrimaryLanguage(rawTranscriptionLanguage);
+  const transcriptionLanguages = normalizeLanguageSelection(
+    record.transcriptionLanguages,
+    fallbackTranscriptionLanguage,
+  );
+  const transcriptionLanguage =
+    rawTranscriptionLanguage === "auto"
+      ? "auto"
+      : transcriptionLanguages[0] ?? fallbackTranscriptionLanguage;
+
+  const soundEffectsEnabled =
+    typeof record.soundEffectsEnabled === "boolean"
+      ? record.soundEffectsEnabled
+      : DEFAULT_SETTINGS.soundEffectsEnabled;
+
+  const showInTray =
+    typeof record.showInTray === "boolean"
+      ? record.showInTray
+      : DEFAULT_SETTINGS.showInTray;
+
+  const showInDock =
+    typeof record.showInDock === "boolean"
+      ? record.showInDock
+      : DEFAULT_SETTINGS.showInDock;
+
+  const openAtLogin =
+    typeof record.openAtLogin === "boolean"
+      ? record.openAtLogin
+      : DEFAULT_SETTINGS.openAtLogin;
 
   const aiCleanup =
     typeof record.aiCleanup === "boolean"
@@ -423,11 +515,21 @@ function coerceSettings(raw: unknown): GhosttypeSettings {
       ? record.autoDictionary
       : DEFAULT_SETTINGS.autoDictionary;
 
+  // Keep at least one surface visible so the app can be reopened.
+  const resolvedShowInTray = showInTray || !showInDock;
+  const resolvedShowInDock = showInDock || !showInTray;
+
   return {
     autoPaste,
     shortcut,
     toggleShortcut,
     selectedMicrophone,
+    transcriptionLanguage,
+    transcriptionLanguages,
+    soundEffectsEnabled,
+    showInTray: resolvedShowInTray,
+    showInDock: resolvedShowInDock,
+    openAtLogin,
     aiCleanup,
     aiModel,
     shareTranscripts,
@@ -462,6 +564,38 @@ export async function updateSettings(
   current: GhosttypeSettings,
   patch: GhosttypeSettingsUpdate,
 ): Promise<GhosttypeSettings> {
+  const nextShowInTray = patch.showInTray ?? current.showInTray;
+  const nextShowInDock = patch.showInDock ?? current.showInDock;
+  if (!nextShowInTray && !nextShowInDock) {
+    throw new Error(
+      "GhostWriter must be shown in the tray or dock so it can be reopened.",
+    );
+  }
+
+  const requestedTranscriptionLanguage =
+    patch.transcriptionLanguage ?? current.transcriptionLanguage;
+  const normalizedTranscriptionLanguage =
+    requestedTranscriptionLanguage === "auto"
+      ? "auto"
+      : normalizePrimaryLanguage(requestedTranscriptionLanguage);
+  const fallbackSelectionLanguage =
+    normalizedTranscriptionLanguage === "auto"
+      ? current.transcriptionLanguages[0] ?? DEFAULT_TRANSCRIPTION_LANGUAGES[0]
+      : normalizedTranscriptionLanguage;
+  let nextTranscriptionLanguages = normalizeLanguageSelection(
+    patch.transcriptionLanguages ?? current.transcriptionLanguages,
+    fallbackSelectionLanguage,
+  );
+  if (
+    normalizedTranscriptionLanguage !== "auto" &&
+    !nextTranscriptionLanguages.includes(normalizedTranscriptionLanguage)
+  ) {
+    nextTranscriptionLanguages = normalizeLanguageSelection(
+      [normalizedTranscriptionLanguage, ...nextTranscriptionLanguages],
+      normalizedTranscriptionLanguage,
+    );
+  }
+
   const next: GhosttypeSettings = {
     autoPaste: patch.autoPaste ?? current.autoPaste,
     shortcut:
@@ -484,6 +618,13 @@ export async function updateSettings(
       patch.selectedMicrophone !== undefined
         ? patch.selectedMicrophone
         : current.selectedMicrophone,
+    transcriptionLanguage: normalizedTranscriptionLanguage,
+    transcriptionLanguages: nextTranscriptionLanguages,
+    soundEffectsEnabled:
+      patch.soundEffectsEnabled ?? current.soundEffectsEnabled,
+    showInTray: nextShowInTray,
+    showInDock: nextShowInDock,
+    openAtLogin: patch.openAtLogin ?? current.openAtLogin,
     aiCleanup: patch.aiCleanup ?? current.aiCleanup,
     aiModel: patch.aiModel ?? current.aiModel,
     shareTranscripts: patch.shareTranscripts ?? current.shareTranscripts,

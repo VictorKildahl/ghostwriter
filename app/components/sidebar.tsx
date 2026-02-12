@@ -18,17 +18,20 @@ export type View =
   | "style"
   | "dictionary"
   | "snippets"
-  | "vibecode"
-  | "settings";
+  | "vibecode";
 
 export function Sidebar({
   currentView,
   onNavigate,
+  onOpenSettings,
   collapsed,
+  settingsOpen,
 }: {
   currentView: View;
   onNavigate: (view: View) => void;
+  onOpenSettings: () => void;
   collapsed: boolean;
+  settingsOpen: boolean;
 }) {
   return (
     <aside
@@ -103,9 +106,9 @@ export function Sidebar({
         <SidebarNavButton
           icon={Settings}
           label="Settings"
-          active={currentView === "settings"}
+          active={settingsOpen}
           collapsed={collapsed}
-          onClick={() => onNavigate("settings")}
+          onClick={onOpenSettings}
         />
       </div>
     </aside>

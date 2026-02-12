@@ -17,6 +17,30 @@ function generateSalt(): string {
     .join("");
 }
 
+function splitName(name?: string) {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return { firstName: undefined, lastName: undefined };
+  }
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: undefined };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function fullName(firstName?: string, lastName?: string) {
+  const first = firstName?.trim() ?? "";
+  const last = lastName?.trim() ?? "";
+  const combined = `${first} ${last}`.trim();
+  return combined || undefined;
+}
+
 export const signUp = mutation({
   args: {
     email: v.string(),
@@ -44,16 +68,28 @@ export const signUp = mutation({
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
 
+    const parsedName = splitName(name);
+    const displayName = fullName(parsedName.firstName, parsedName.lastName);
+
     const userId = await ctx.db.insert("users", {
       email: normalizedEmail,
       passwordHash,
       salt,
-      name,
+      name: displayName,
+      firstName: parsedName.firstName,
+      lastName: parsedName.lastName,
       deviceId,
       createdAt: Date.now(),
     });
 
-    return { userId, email: normalizedEmail };
+    return {
+      userId,
+      email: normalizedEmail,
+      name: displayName,
+      firstName: parsedName.firstName,
+      lastName: parsedName.lastName,
+      profileImageUrl: undefined,
+    };
   },
 });
 
@@ -86,10 +122,17 @@ export const login = mutation({
       await ctx.db.patch(user._id, { deviceId });
     }
 
+    const parsedLegacyName = splitName(user.name);
+    const firstName = user.firstName ?? parsedLegacyName.firstName;
+    const lastName = user.lastName ?? parsedLegacyName.lastName;
+
     return {
       userId: user._id,
       email: user.email,
-      name: user.name,
+      name: fullName(firstName, lastName) ?? user.name,
+      firstName,
+      lastName,
+      profileImageUrl: user.profileImageUrl,
       isAdmin: user.isAdmin ?? false,
     };
   },
@@ -100,10 +143,16 @@ export const validate = query({
   handler: async (ctx, { userId }) => {
     const user = await ctx.db.get(userId);
     if (!user) return null;
+    const parsedLegacyName = splitName(user.name);
+    const firstName = user.firstName ?? parsedLegacyName.firstName;
+    const lastName = user.lastName ?? parsedLegacyName.lastName;
     return {
       userId: user._id,
       email: user.email,
-      name: user.name,
+      name: fullName(firstName, lastName) ?? user.name,
+      firstName,
+      lastName,
+      profileImageUrl: user.profileImageUrl,
       isAdmin: user.isAdmin ?? false,
     };
   },

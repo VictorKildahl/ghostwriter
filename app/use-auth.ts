@@ -9,6 +9,9 @@ type AuthState = {
   userId: Id<"users">;
   email: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
   isAdmin?: boolean;
 };
 
@@ -74,12 +77,18 @@ export function useAuth() {
       validated &&
       (auth.name !== validated.name ||
         auth.email !== validated.email ||
+        auth.firstName !== validated.firstName ||
+        auth.lastName !== validated.lastName ||
+        auth.profileImageUrl !== validated.profileImageUrl ||
         auth.isAdmin !== validated.isAdmin)
     ) {
       const updated: AuthState = {
         ...auth,
         email: validated.email,
         name: validated.name,
+        firstName: validated.firstName,
+        lastName: validated.lastName,
+        profileImageUrl: validated.profileImageUrl,
         isAdmin: validated.isAdmin,
       };
       setAuth(updated);
@@ -108,7 +117,10 @@ export function useAuth() {
       const authState: AuthState = {
         userId: result.userId,
         email: result.email,
-        name: name,
+        name: result.name ?? name,
+        firstName: result.firstName,
+        lastName: result.lastName,
+        profileImageUrl: result.profileImageUrl,
       };
       setAuth(authState);
       saveAuthToStorage(authState);
@@ -143,6 +155,9 @@ export function useAuth() {
         userId: result.userId,
         email: result.email,
         name: result.name,
+        firstName: result.firstName,
+        lastName: result.lastName,
+        profileImageUrl: result.profileImageUrl,
         isAdmin: result.isAdmin,
       };
       setAuth(authState);

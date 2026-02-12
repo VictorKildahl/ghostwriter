@@ -1,5 +1,7 @@
 "use client";
 
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { formatShortcut } from "@/lib/ghost-helpers";
 import { cn } from "@/lib/utils";
 import type {
@@ -7,17 +9,29 @@ import type {
   DisplayInfo,
   GhosttypeSettings,
 } from "@/types/ghosttype";
+import {
+  DEFAULT_TRANSCRIPTION_LANGUAGE,
+  VISIBLE_TRANSCRIPTION_LANGUAGES,
+  type TranscriptionLanguage,
+} from "@/types/languages";
+import { useMutation, useQuery } from "convex/react";
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL } from "@/types/models";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { PageLayout } from "./page-layout";
 
 type SettingsError = string | null;
 
 type SettingsViewProps = {
   isAdmin: boolean;
+  userId: Id<"users">;
+  onAccountDeleted: () => void;
 };
 
-export function SettingsView({ isAdmin }: SettingsViewProps) {
+export function SettingsView({
+  isAdmin,
+  userId,
+  onAccountDeleted,
+}: SettingsViewProps) {
   const [settings, setSettings] = useState<GhosttypeSettings | null>(null);
   const [settingsError, setSettingsError] = useState<SettingsError>(null);
   const [apiReady, setApiReady] = useState(false);
@@ -32,6 +46,23 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
   const [defaultDeviceName, setDefaultDeviceName] = useState<string | null>(
     null,
   );
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [problemMessage, setProblemMessage] = useState("");
+  const [problemDetails, setProblemDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const profile = useQuery(api.users.getProfile, { userId });
+  const updateProfileMutation = useMutation(api.users.updateProfile);
+  const deleteAccountMutation = useMutation(api.users.deleteAccount);
+  const reportProblemMutation = useMutation(api.users.reportProblem);
 
   useEffect(() => {
     if (!window.ghosttype) {
@@ -75,9 +106,21 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!profile) return;
+    setFirstName(profile.firstName ?? "");
+    setLastName(profile.lastName ?? "");
+    setProfileImageUrl(profile.profileImageUrl ?? "");
+  }, [profile]);
+
   async function updateSettings(patch: {
     autoPaste?: boolean;
     selectedMicrophone?: string | null;
+    transcriptionLanguage?: TranscriptionLanguage;
+    soundEffectsEnabled?: boolean;
+    showInTray?: boolean;
+    showInDock?: boolean;
+    openAtLogin?: boolean;
     aiCleanup?: boolean;
     aiModel?: string;
     shareTranscripts?: boolean;
@@ -95,6 +138,162 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
         error instanceof Error ? error.message : "Unable to save settings.";
       setSettingsError(message);
     }
+  }
+
+  async function readImageAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const value = typeof reader.result === "string" ? reader.result : null;
+        if (!value) {
+          reject(new Error("Could not read image file."));
+          return;
+        }
+        resolve(value);
+      };
+      reader.onerror = () => reject(new Error("Could not read image file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function onProfileImageSelected(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (file.size > 1_500_000) {
+      setProfileError("Profile image must be 1.5MB or smaller.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readImageAsDataUrl(file);
+      setProfileImageUrl(dataUrl);
+      setProfileError(null);
+      setProfileMessage(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to load image.";
+      setProfileError(message);
+    }
+  }
+
+  async function saveProfile() {
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileMessage(null);
+    try {
+      await updateProfileMutation({
+        userId,
+        firstName,
+        lastName,
+        profileImageUrl,
+      });
+      setProfileMessage("Account profile updated.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to update profile.";
+      setProfileError(message);
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  async function deleteAccount() {
+    const confirmed = window.confirm(
+      "Delete your account permanently? This removes your profile, sessions, dictionary, snippets, and usage history.",
+    );
+    if (!confirmed) return;
+
+    const phrase = window.prompt('Type DELETE to confirm account deletion.');
+    if (phrase !== "DELETE") {
+      setProfileError("Account deletion cancelled.");
+      return;
+    }
+
+    setDeletingAccount(true);
+    setProfileError(null);
+    try {
+      await deleteAccountMutation({ userId });
+      onAccountDeleted();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to delete account.";
+      setProfileError(message);
+      setDeletingAccount(false);
+    }
+  }
+
+  async function submitProblemReport() {
+    setReportSubmitting(true);
+    setReportError(null);
+    setReportStatus(null);
+
+    try {
+      let details = problemDetails.trim();
+      if (window.ghosttype) {
+        try {
+          const deviceId = await window.ghosttype.getDeviceId();
+          if (deviceId) {
+            details = `${details}\n\nDevice ID: ${deviceId}`.trim();
+          }
+        } catch {
+          // Best effort only.
+        }
+      }
+
+      await reportProblemMutation({
+        userId,
+        message: problemMessage,
+        details: details || undefined,
+      });
+
+      setProblemMessage("");
+      setProblemDetails("");
+      setReportStatus("Thanks — your report has been submitted.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to submit report.";
+      setReportError(message);
+    } finally {
+      setReportSubmitting(false);
+    }
+  }
+
+  async function toggleTrayVisibility() {
+    const currentTray = settings?.showInTray ?? true;
+    const currentDock = settings?.showInDock ?? true;
+    const nextTray = !currentTray;
+
+    if (!nextTray && !currentDock) {
+      setSettingsError(
+        "GhostWriter must stay visible in either the tray or the dock.",
+      );
+      return;
+    }
+
+    await updateSettings({ showInTray: nextTray });
+  }
+
+  async function toggleDockVisibility() {
+    const currentTray = settings?.showInTray ?? true;
+    const currentDock = settings?.showInDock ?? true;
+    const nextDock = !currentDock;
+
+    if (!nextDock && !currentTray) {
+      setSettingsError(
+        "GhostWriter must stay visible in either the tray or the dock.",
+      );
+      return;
+    }
+
+    await updateSettings({ showInDock: nextDock });
+  }
+
+  async function toggleOpenAtLogin() {
+    await updateSettings({ openAtLogin: !(settings?.openAtLogin ?? false) });
   }
 
   async function beginShortcutCapture() {
@@ -235,9 +434,107 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
     };
   }, []);
 
+  const accountInitials = `${firstName.trim().charAt(0)}${lastName
+    .trim()
+    .charAt(0)}`
+    .trim()
+    .toUpperCase();
+
   return (
     <PageLayout title="Settings" subtitle="Configure how GhostWriter works.">
       <div className="flex flex-col divide-y divide-border">
+        {/* Account profile */}
+        <div className="py-5">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/10 text-base font-semibold text-accent">
+                {profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profileImageUrl}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  accountInitials || "?"
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-ink transition hover:bg-sidebar hover:cursor-pointer">
+                  Upload photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onProfileImageSelected}
+                  />
+                </label>
+                {profileImageUrl && (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted transition hover:bg-sidebar hover:text-ink hover:cursor-pointer"
+                    onClick={() => setProfileImageUrl("")}
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-ink">First name</span>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  placeholder="First name"
+                  className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-ink">Last name</span>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  placeholder="Last name"
+                  className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={saveProfile}
+                disabled={profileSaving || deletingAccount}
+                className="rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white transition hover:bg-accent/90 disabled:opacity-50 hover:cursor-pointer"
+              >
+                {profileSaving ? "Saving..." : "Save account"}
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteAccount}
+                disabled={profileSaving || deletingAccount}
+                className="rounded-lg bg-ember/10 px-3 py-2 text-xs font-medium text-ember transition hover:bg-ember/20 disabled:opacity-50 hover:cursor-pointer"
+              >
+                {deletingAccount ? "Deleting..." : "Delete account permanently"}
+              </button>
+            </div>
+
+            {profileMessage && (
+              <p className="text-xs text-accent">{profileMessage}</p>
+            )}
+            {profileError && (
+              <p className="text-xs text-ember">{profileError}</p>
+            )}
+          </div>
+        </div>
+
         {/* Auto-paste */}
         <div className="flex items-center justify-between py-5">
           <div>
@@ -264,6 +561,126 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
               className={cn(
                 "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
                 settings?.autoPaste ? "translate-x-5" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Show in tray */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">Show in tray</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Keep GhostWriter available from the macOS menu bar.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.showInTray ?? true}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.showInTray ?? true) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={toggleTrayVisibility}
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                (settings?.showInTray ?? true)
+                  ? "translate-x-5"
+                  : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Show in dock */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">Show in dock</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Display GhostWriter as a normal app icon in the dock.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.showInDock ?? true}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.showInDock ?? true) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={toggleDockVisibility}
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                (settings?.showInDock ?? true)
+                  ? "translate-x-5"
+                  : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Open on macOS boot */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">Open on macOS boot</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Automatically start GhostWriter when you log in.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.openAtLogin ?? false}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.openAtLogin ?? false) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={toggleOpenAtLogin}
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                (settings?.openAtLogin ?? false)
+                  ? "translate-x-5"
+                  : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Sound effects */}
+        <div className="flex items-center justify-between py-5">
+          <div>
+            <p className="text-sm font-medium text-ink">Sound effects</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Play a short sound when ghosting starts and stops.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-pressed={settings?.soundEffectsEnabled ?? true}
+            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition hover:cursor-pointer"
+            style={{
+              backgroundColor:
+                (settings?.soundEffectsEnabled ?? true) ? "#6944AE" : "#d4d4d4",
+            }}
+            onClick={() =>
+              updateSettings({
+                soundEffectsEnabled: !(settings?.soundEffectsEnabled ?? true),
+              })
+            }
+          >
+            <span
+              className={cn(
+                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                (settings?.soundEffectsEnabled ?? true)
+                  ? "translate-x-5"
+                  : "translate-x-0.5",
               )}
             />
           </button>
@@ -471,6 +888,31 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
 
         {/* Microphone */}
         <div className="py-5">
+          <label className="flex flex-col gap-2 text-sm mb-4">
+            <span className="font-medium text-ink">Transcription language</span>
+            <select
+              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40 hover:cursor-pointer"
+              value={
+                settings?.transcriptionLanguage ?? DEFAULT_TRANSCRIPTION_LANGUAGE
+              }
+              onChange={(event) =>
+                updateSettings({
+                  transcriptionLanguage: event.target
+                    .value as TranscriptionLanguage,
+                })
+              }
+            >
+              {VISIBLE_TRANSCRIPTION_LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted">
+              Pick the language you speak while ghosting.
+            </span>
+          </label>
+
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium text-ink">Microphone</span>
             <select
@@ -600,6 +1042,44 @@ export function SettingsView({ isAdmin }: SettingsViewProps) {
             </label>
           </div>
         )}
+
+        {/* Report problem */}
+        <div className="py-5">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-ink">Report a problem</p>
+            <p className="text-xs text-muted">
+              Tell us what went wrong and include reproduction steps if you can.
+            </p>
+
+            <textarea
+              value={problemMessage}
+              onChange={(event) => setProblemMessage(event.target.value)}
+              placeholder="What happened?"
+              rows={3}
+              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+
+            <textarea
+              value={problemDetails}
+              onChange={(event) => setProblemDetails(event.target.value)}
+              placeholder="Optional: steps to reproduce, expected vs actual behavior"
+              rows={4}
+              className="rounded-lg border border-border bg-sidebar px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+
+            <button
+              type="button"
+              onClick={submitProblemReport}
+              disabled={reportSubmitting || problemMessage.trim().length < 10}
+              className="self-start rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white transition hover:bg-accent/90 disabled:opacity-50 hover:cursor-pointer"
+            >
+              {reportSubmitting ? "Submitting..." : "Send report"}
+            </button>
+
+            {reportStatus && <p className="text-xs text-accent">{reportStatus}</p>}
+            {reportError && <p className="text-xs text-ember">{reportError}</p>}
+          </div>
+        </div>
 
         {settingsError && (
           <p className="text-xs text-ember py-5">{settingsError}</p>
