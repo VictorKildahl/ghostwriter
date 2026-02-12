@@ -8,6 +8,7 @@ import {
 } from "./appCategory";
 import {
   getDefaultInputDeviceName,
+  invalidateDefaultDeviceCache,
   startRecording,
   stopRecording,
   type RecordingSession,
@@ -196,7 +197,9 @@ export class GhostingController {
 
     // When the user hasn't picked a specific mic, resolve the real macOS
     // default input device (cached, fast) instead of blindly using index 0.
+    // Invalidate cache first so we always track the current macOS setting.
     const configured = this.getSettings().selectedMicrophone ?? null;
+    if (!configured) invalidateDefaultDeviceCache();
     const selectedMic = configured ?? (await getDefaultInputDeviceName());
 
     try {
