@@ -2,11 +2,12 @@
 
 import { OnboardingConsent } from "@/app/components/onboarding-consent";
 import { OnboardingDisplay } from "@/app/components/onboarding-display";
+import { OnboardingShortcuts } from "@/app/components/onboarding-shortcuts";
 import { OnboardingStyle } from "@/app/components/onboarding-style";
 import type { DisplayInfo, StylePreferences } from "@/types/ghosttype";
 import { useEffect, useState } from "react";
 
-type Step = "consent" | "style" | "display";
+type Step = "consent" | "style" | "shortcuts" | "display";
 
 export function OnboardingView({
   onComplete,
@@ -46,11 +47,21 @@ export function OnboardingView({
     return (
       <OnboardingStyle
         onChoice={(prefs) => {
+          setStylePreferences(prefs);
+          setStep("shortcuts");
+        }}
+      />
+    );
+  }
+
+  if (step === "shortcuts") {
+    return (
+      <OnboardingShortcuts
+        onComplete={() => {
           if (hasMultipleDisplays) {
-            setStylePreferences(prefs);
             setStep("display");
           } else {
-            onComplete(shareTranscripts, prefs, null);
+            onComplete(shareTranscripts, stylePreferences!, null);
           }
         }}
       />
