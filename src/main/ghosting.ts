@@ -24,6 +24,26 @@ import { loadSnippets } from "./snippetStore";
 import { readVibeCodeFileContents } from "./vibeCodeStore";
 import { transcribeWithWhisper } from "./whisper";
 
+/**
+ * Whisper.cpp sometimes transcribes background noise, silence, or
+ * non-speech audio as bracketed/parenthesised markers such as
+ * `[silence]`, `(clicking)`, `[BLANK_AUDIO]`, `[music]`, etc.
+ *
+ * This function strips ALL such noise markers and returns only real
+ * speech content.  If nothing meaningful remains, returns an empty string
+ * so the caller can skip pasting entirely.
+ */
+function stripNoiseMarkers(text: string): string {
+  // Remove any [...] or (...) tokens that Whisper uses for non-speech
+  // events.  Common examples: [silence], [BLANK_AUDIO], (clicking),
+  // [music], (footsteps), [laughter], (sighs), [noise], etc.
+  return text
+    .replace(/\[.*?\]/g, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export type GhostingPhase =
   | "idle"
   | "recording"
@@ -146,8 +166,15 @@ export class GhostingController {
 
       const rawText = await transcribeWithWhisper(session.filePath);
 
-      if (!rawText || rawText.trim() === "[BLANK_AUDIO]") {
-        console.log("[ghosttype] no speech detected, skipping");
+      // Strip Whisper noise markers ([silence], (clicking), [BLANK_AUDIO],
+      // etc.) to determine if the recording contained any real speech.
+      const speechOnly = stripNoiseMarkers(rawText ?? "");
+      if (!speechOnly) {
+        console.log(
+          "[ghosttype] no speech detected (raw:",
+          JSON.stringify(rawText),
+          "), skipping",
+        );
         this.setState({ phase: "idle", lastRawText: "", lastGhostedText: "" });
         return;
       }
@@ -224,6 +251,21 @@ export class GhostingController {
       } else {
         console.log("[ghosttype] ai cleanup skipped");
         finalText = rawText;
+      }
+
+      // Safety net: if the cleaned text is empty or still contains only
+      // noise markers after AI cleanup, there's nothing real to paste.
+      const cleanedSpeech = stripNoiseMarkers(finalText);
+      if (!cleanedSpeech) {
+        console.log(
+          "[ghosttype] cleaned text is empty/noise-only, skipping paste",
+        );
+        this.setState({
+          phase: "idle",
+          lastRawText: rawText,
+          lastGhostedText: "",
+        });
+        return;
       }
 
       this.setState({ lastGhostedText: finalText, phase: "idle" });
