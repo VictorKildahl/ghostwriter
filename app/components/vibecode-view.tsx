@@ -127,9 +127,9 @@ export function VibeCodeView() {
             <span className="font-semibold">
               automatically detects the file you have open
             </span>{" "}
-            in VS Code, Cursor, or Zed and uses it as context — so your variable
-            names, types, and imports come out right. You can also pin extra
-            files (like type definitions) for always-on context.
+            in VS Code, Cursor, Windsurf and others and uses it as context — so
+            your variable names, types, and imports come out right.
+            {/* You can also pin extra files (like type definitions) for always-on context. */}
           </p>
 
           <div className="mt-4 flex flex-col gap-2">
@@ -169,9 +169,9 @@ export function VibeCodeView() {
               Active file detection
             </p>
             <p className="mt-0.5 text-xs text-muted">
-              When you ghost in VS Code, Cursor, or Zed, GhostWriter reads the
-              window title to detect your open file and includes its contents
-              automatically.
+              When you ghost in VS Code, Cursor, Windsurf and others,
+              GhostWriter reads the window title to detect your open file and
+              includes its contents automatically.
             </p>
           </div>
           <button

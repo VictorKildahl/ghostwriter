@@ -47,9 +47,12 @@ const BUNDLE_CATEGORY: Record<string, AppCategory> = {
   // ── Code editors / IDEs ─────────────────────────────────────────────
   "com.microsoft.VSCode": "code",
   "com.todesktop.230313mzl4w4u92": "code", // Cursor
+  "com.exafunction.windsurf": "code", // Windsurf (Codeium)
   "dev.zed.Zed": "code",
+  "com.trae.app": "code", // Trae (ByteDance)
   "com.sublimetext.4": "code",
   "com.sublimetext.3": "code",
+  "com.apple.dt.Xcode": "code",
   "com.jetbrains.intellij": "code",
   "com.jetbrains.WebStorm": "code",
   "com.jetbrains.pycharm": "code",
@@ -60,6 +63,7 @@ const BUNDLE_CATEGORY: Record<string, AppCategory> = {
   "com.jetbrains.rubymine": "code",
   "com.jetbrains.AppCode": "code",
   "com.jetbrains.DataGrip": "code",
+  "com.anthropic.claude": "code", // Claude desktop
   "com.googlecode.iterm2": "code",
   "com.apple.Terminal": "code",
   "net.kovidgoyal.kitty": "code",
@@ -156,6 +160,7 @@ const BUNDLE_NAME: Record<string, string> = {
   "com.apple.TextEdit": "TextEdit",
   "md.obsidian": "Obsidian",
   "com.notion.Notion": "Notion",
+  "notion.id": "Notion",
   "com.electron.logseq": "Logseq",
   "com.microsoft.Word": "Microsoft Word",
   "com.google.drivefs": "Google Docs",
@@ -164,11 +169,16 @@ const BUNDLE_NAME: Record<string, string> = {
   // Code editors
   "com.microsoft.VSCode": "VS Code",
   "com.todesktop.230313mzl4w4u92": "Cursor",
+  "com.exafunction.windsurf": "Windsurf",
   "dev.zed.Zed": "Zed",
+  "com.trae.app": "Trae",
   "com.sublimetext.4": "Sublime Text",
+  "com.apple.dt.Xcode": "Xcode",
+  "com.anthropic.claude": "Claude",
   "com.jetbrains.intellij": "IntelliJ IDEA",
   "com.googlecode.iterm2": "iTerm2",
   "com.apple.Terminal": "Terminal",
+  "dev.warp.Warp-Stable": "Warp",
 };
 
 /**

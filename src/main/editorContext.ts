@@ -17,7 +17,9 @@ import type { VibeCodeContext } from "./aiGateway";
 const EDITOR_BUNDLE_IDS = new Set([
   "com.microsoft.VSCode",
   "com.todesktop.230313mzl4w4u92", // Cursor
+  "com.exafunction.windsurf", // Windsurf (Codeium)
   "dev.zed.Zed",
+  "com.trae.app", // Trae (ByteDance)
   "com.sublimetext.4",
   "com.sublimetext.3",
   "com.jetbrains.intellij",
@@ -36,7 +38,9 @@ const EDITOR_BUNDLE_IDS = new Set([
 const EDITOR_STORAGE_DIRS: Record<string, string> = {
   "com.microsoft.VSCode": "Code",
   "com.todesktop.230313mzl4w4u92": "Cursor",
+  "com.exafunction.windsurf": "Windsurf",
   "dev.zed.Zed": "Zed",
+  "com.trae.app": "Trae",
 };
 
 const MAX_FILE_BYTES = 6144; // 6 KB per auto-detected file
@@ -110,7 +114,7 @@ type ParsedTitle = {
 };
 
 /**
- * VS Code / Cursor / Zed title format:
+ * VS Code / Cursor / Windsurf title format:
  *   `● filename.ext — folder_name — VS Code`
  *   `filename.ext — folder_name — Cursor`
  *   `Page - app — ghosttype — Victor`  (tab label — workspace — profile)

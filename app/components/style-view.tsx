@@ -95,7 +95,7 @@ const TABS: TabDef[] = [
   {
     id: "code",
     label: "Code",
-    description: "VS Code, Cursor, Zed, terminals, JetBrains IDEs …",
+    description: "VS Code, Cursor, Windsurf, Warp, terminals, JetBrains IDEs …",
     styles: EMAIL_OTHER_STYLES,
   },
   {
