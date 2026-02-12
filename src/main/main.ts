@@ -6,9 +6,9 @@ import {
   Menu,
   nativeImage,
   screen,
-  shell,
   Tray,
 } from "electron";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { uIOhook } from "uiohook-napi";
@@ -314,10 +314,13 @@ function applyAppVisibilitySettings(next: GhosttypeSettings) {
 }
 
 function playGhostingTransitionSound(kind: "start" | "stop") {
-  shell.beep();
-  if (kind === "stop") {
-    setTimeout(() => shell.beep(), 120);
-  }
+  const soundFile = kind === "start" ? "click-start.wav" : "click-stop.wav";
+  const soundPath = app.isPackaged
+    ? path.join(process.resourcesPath, "sounds", soundFile)
+    : resolveAppResourcePath("resources", "sounds", soundFile);
+  execFile("afplay", [soundPath], (err) => {
+    if (err) console.warn("Failed to play sound:", err.message);
+  });
 }
 
 function rebuildTrayMenu() {
@@ -771,16 +774,6 @@ app.whenReady().then(async () => {
   const controller = new GhostingController(
     (state) => {
       const currentSettings = settings ?? getDefaultSettings();
-      if (currentSettings.soundEffectsEnabled) {
-        if (state.phase === "recording" && lastGhostingPhase !== "recording") {
-          playGhostingTransitionSound("start");
-        } else if (
-          lastGhostingPhase === "recording" &&
-          state.phase !== "recording"
-        ) {
-          playGhostingTransitionSound("stop");
-        }
-      }
       lastGhostingPhase = state.phase;
 
       mainWindow?.webContents.send("ghosting:state", state);
@@ -874,14 +867,25 @@ app.whenReady().then(async () => {
     onCaptureComplete: (shortcut) => {
       void commitShortcut(shortcut);
     },
-    onStart: () => controller.startGhosting(),
-    onStop: () => controller.stopGhosting(),
+    onStart: () => {
+      const s = settings ?? getDefaultSettings();
+      if (s.soundEffectsEnabled) playGhostingTransitionSound("start");
+      controller.startGhosting();
+    },
+    onStop: () => {
+      const s = settings ?? getDefaultSettings();
+      if (s.soundEffectsEnabled) playGhostingTransitionSound("stop");
+      controller.stopGhosting();
+    },
     onToggle: () => {
       const state = controller.getState();
+      const s = settings ?? getDefaultSettings();
       if (state.phase === "recording") {
+        if (s.soundEffectsEnabled) playGhostingTransitionSound("stop");
         return controller.stopGhosting();
       }
       if (state.phase === "idle" || state.phase === "error") {
+        if (s.soundEffectsEnabled) playGhostingTransitionSound("start");
         return controller.startGhosting();
       }
     },

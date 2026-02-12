@@ -104,14 +104,26 @@ export async function resolveActiveMicrophone(
 type SystemProfilerAudioDevice = {
   _name: string;
   coreaudio_default_audio_input_device?: string;
+  coreaudio_device_input?: number;
+};
+
+/**
+ * `system_profiler SPAudioDataType -json` wraps the device list in:
+ *   { SPAudioDataType: [ { _name: "coreaudio_device", _items: [ ...devices ] } ] }
+ */
+type SystemProfilerCategory = {
+  _name?: string;
+  _items?: SystemProfilerAudioDevice[];
+  // Older macOS versions *may* flatten devices at this level
+  coreaudio_default_audio_input_device?: string;
 };
 
 type SystemProfilerResult = {
-  SPAudioDataType?: SystemProfilerAudioDevice[];
+  SPAudioDataType?: SystemProfilerCategory[];
 };
 
 let cachedDefaultDevice: { name: string; ts: number } | null = null;
-const CACHE_TTL_MS = 300_000; // 5 min – audio devices rarely change mid-session
+const CACHE_TTL_MS = 30_000; // 30 s – short enough to track macOS device changes
 
 /** Invalidate the cached default input device so the next call re-queries. */
 export function invalidateDefaultDeviceCache() {
@@ -142,15 +154,19 @@ export function getDefaultInputDeviceName(): Promise<string | null> {
       (_error, stdout) => {
         try {
           const parsed: SystemProfilerResult = JSON.parse(stdout ?? "{}");
-          const devices = parsed.SPAudioDataType ?? [];
+          const categories = parsed.SPAudioDataType ?? [];
+
+          // system_profiler wraps the device list inside _items.
+          // Flatten all devices from every category entry.
+          const devices: SystemProfilerAudioDevice[] = categories.flatMap(
+            (cat) => cat._items ?? [],
+          );
+
           const defaultDev = devices.find(
             (d) => d.coreaudio_default_audio_input_device === "spaudio_yes",
           );
-          if (defaultDev) {
+          if (defaultDev?._name) {
             cachedDefaultDevice = { name: defaultDev._name, ts: Date.now() };
-            console.log(
-              `[ghosttype] macOS default input device: "${defaultDev._name}"`,
-            );
             resolve(defaultDev._name);
             return;
           }
@@ -176,37 +192,85 @@ function buildAudioInput(microphone: string | null): string {
   return microphone ? `:${microphone}` : ":0";
 }
 
-export function startRecording(microphone?: string | null): RecordingSession {
+export function startRecording(
+  microphone?: string | null,
+  onLevel?: (level: number) => void,
+): RecordingSession {
   const filePath = path.join(os.tmpdir(), `ghosttype-${Date.now()}.wav`);
   const ffmpegBin = resolveFfmpegBinary();
 
   const audioInput = buildAudioInput(microphone ?? null);
-
-  const args = [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-y",
-    "-f",
-    "avfoundation",
-    "-i",
-    audioInput,
-    "-ac",
-    "1",
-    "-ar",
-    "16000",
-    "-c:a",
-    "pcm_s16le",
-    "-flush_packets",
-    "1",
-    filePath,
-  ];
+  const shouldEmitLevels = typeof onLevel === "function";
+  const args = shouldEmitLevels
+    ? [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "avfoundation",
+        "-i",
+        audioInput,
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-filter_complex",
+        "[0:a]asplit=2[a_out][a_meter]",
+        "-map",
+        "[a_out]",
+        "-c:a",
+        "pcm_s16le",
+        "-flush_packets",
+        "1",
+        filePath,
+        "-map",
+        "[a_meter]",
+        "-f",
+        "s16le",
+        "-",
+      ]
+    : [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "avfoundation",
+        "-i",
+        audioInput,
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-c:a",
+        "pcm_s16le",
+        "-flush_packets",
+        "1",
+        filePath,
+      ];
 
   const childProcess = spawn(ffmpegBin, args, {
     // Pipe stdin so we can send 'q' for a graceful shutdown that flushes
     // all buffered audio instead of losing the last words.
-    stdio: ["pipe", "ignore", "ignore"],
+    stdio: ["pipe", shouldEmitLevels ? "pipe" : "ignore", "ignore"],
   });
+
+  if (shouldEmitLevels && childProcess.stdout && onLevel) {
+    childProcess.stdout.on("data", (chunk: Buffer) => {
+      let sumSq = 0;
+      const sampleCount = Math.floor(chunk.length / 2);
+      if (sampleCount === 0) return;
+
+      for (let i = 0; i < sampleCount; i += 1) {
+        const sample = chunk.readInt16LE(i * 2);
+        sumSq += sample * sample;
+      }
+
+      const rms = Math.sqrt(sumSq / sampleCount) / 32768;
+      onLevel(Math.min(1, rms));
+    });
+  }
 
   return { filePath, process: childProcess };
 }

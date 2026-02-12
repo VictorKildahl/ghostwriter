@@ -21,6 +21,10 @@ extraResources:
     to: ffmpeg
     filter:
       - "**/*"
+  - from: resources/sounds
+    to: sounds
+    filter:
+      - "**/*"
   - from: resources/overlay.html
     to: resources/overlay.html
   - from: resources/ghosty-talking.png
