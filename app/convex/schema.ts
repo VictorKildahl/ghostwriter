@@ -103,4 +103,9 @@ export default defineSchema({
     createdAt: v.number(),
     status: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
+
+  waitlist: defineTable({
+    email: v.string(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
 });
