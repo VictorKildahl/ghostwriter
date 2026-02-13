@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { StylePreferences, WritingStyle } from "@/types/ghosttype";
+import type { StylePreferences, WritingStyle } from "@/types/ghostwriter";
 import { useState } from "react";
 
 const WRITING_STYLES: {
@@ -34,8 +34,12 @@ const WRITING_STYLES: {
 ];
 
 export function OnboardingStyle({
+  step,
+  totalSteps,
   onChoice,
 }: {
+  step: number;
+  totalSteps: number;
   onChoice: (stylePreferences: StylePreferences) => void;
 }) {
   const [selectedStyle, setSelectedStyle] = useState<WritingStyle>("casual");
@@ -52,8 +56,12 @@ export function OnboardingStyle({
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
+    <div className="flex h-screen w-screen items-center justify-center bg-[#edf1eb] px-4">
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-white p-8 shadow-soft">
+        <p className="mb-4 text-xs font-medium tracking-wide text-muted">
+          Step {step} of {totalSteps}
+        </p>
+
         {/* Header */}
         <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

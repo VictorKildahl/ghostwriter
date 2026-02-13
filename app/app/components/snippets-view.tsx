@@ -56,8 +56,8 @@ export function SnippetsView({ userId }: { userId: Id<"users"> }) {
 
   // Sync snippets to local file so the main process can access them
   useEffect(() => {
-    if (!entries || !window.ghosttype) return;
-    window.ghosttype
+    if (!entries || !window.ghostwriter) return;
+    window.ghostwriter
       .syncSnippets(
         entries.map((e) => ({
           id: e._id,

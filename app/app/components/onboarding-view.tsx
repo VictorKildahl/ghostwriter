@@ -4,7 +4,7 @@ import { OnboardingConsent } from "@/app/components/onboarding-consent";
 import { OnboardingDisplay } from "@/app/components/onboarding-display";
 import { OnboardingShortcuts } from "@/app/components/onboarding-shortcuts";
 import { OnboardingStyle } from "@/app/components/onboarding-style";
-import type { DisplayInfo, StylePreferences } from "@/types/ghosttype";
+import type { DisplayInfo, StylePreferences } from "@/types/ghostwriter";
 import { useEffect, useState } from "react";
 
 type Step = "consent" | "style" | "shortcuts" | "display";
@@ -23,10 +23,11 @@ export function OnboardingView({
   const [stylePreferences, setStylePreferences] =
     useState<StylePreferences | null>(null);
   const [hasMultipleDisplays, setHasMultipleDisplays] = useState(false);
+  const totalSteps = hasMultipleDisplays ? 4 : 3;
 
   // Check display count once on mount so we know whether to show the step
   useEffect(() => {
-    window.ghosttype
+    window.ghostwriter
       ?.getDisplays()
       .then((d: DisplayInfo[]) => setHasMultipleDisplays(d.length > 1))
       .catch(() => undefined);
@@ -35,6 +36,8 @@ export function OnboardingView({
   if (step === "consent") {
     return (
       <OnboardingConsent
+        step={1}
+        totalSteps={totalSteps}
         onChoice={(share) => {
           setShareTranscripts(share);
           setStep("style");
@@ -46,6 +49,8 @@ export function OnboardingView({
   if (step === "style") {
     return (
       <OnboardingStyle
+        step={2}
+        totalSteps={totalSteps}
         onChoice={(prefs) => {
           setStylePreferences(prefs);
           setStep("shortcuts");
@@ -57,6 +62,8 @@ export function OnboardingView({
   if (step === "shortcuts") {
     return (
       <OnboardingShortcuts
+        step={3}
+        totalSteps={totalSteps}
         onComplete={() => {
           if (hasMultipleDisplays) {
             setStep("display");
@@ -70,6 +77,8 @@ export function OnboardingView({
 
   return (
     <OnboardingDisplay
+      step={4}
+      totalSteps={totalSteps}
       onChoice={(displayId) =>
         onComplete(shareTranscripts, stylePreferences!, displayId)
       }

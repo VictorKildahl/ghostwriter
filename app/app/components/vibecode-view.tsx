@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { GhosttypeSettings, VibeCodeFile } from "@/types/ghosttype";
+import type { GhostwriterSettings, VibeCodeFile } from "@/types/ghostwriter";
 import {
   Eye,
   FileCode,
@@ -19,20 +19,20 @@ import { PageLayout } from "./page-layout";
 const SHOW_PINNED_FILES = process.env.NEXT_PUBLIC_PINNED_FILES === "true";
 
 export function VibeCodeView() {
-  const [settings, setSettings] = useState<GhosttypeSettings | null>(null);
+  const [settings, setSettings] = useState<GhostwriterSettings | null>(null);
   const [files, setFiles] = useState<VibeCodeFile[]>([]);
   const [showBanner, setShowBanner] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Load settings + files
   useEffect(() => {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
 
-    window.ghosttype
+    window.ghostwriter
       .getSettings()
       .then(setSettings)
       .catch(() => undefined);
-    window.ghosttype
+    window.ghostwriter
       .getVibeCodeFiles()
       .then((f) => {
         setFiles(f);
@@ -40,14 +40,14 @@ export function VibeCodeView() {
       })
       .catch(() => setLoading(false));
 
-    const unsub = window.ghosttype.onSettings(setSettings);
+    const unsub = window.ghostwriter.onSettings(setSettings);
     return unsub;
   }, []);
 
   const toggleAutoFileDetection = useCallback(async () => {
-    if (!window.ghosttype || !settings) return;
+    if (!window.ghostwriter || !settings) return;
     try {
-      const next = await window.ghosttype.updateSettings({
+      const next = await window.ghostwriter.updateSettings({
         autoFileDetection: !settings.autoFileDetection,
       });
       setSettings(next);
@@ -57,9 +57,9 @@ export function VibeCodeView() {
   }, [settings]);
 
   const toggleEditorFileTagging = useCallback(async () => {
-    if (!window.ghosttype || !settings) return;
+    if (!window.ghostwriter || !settings) return;
     try {
-      const next = await window.ghosttype.updateSettings({
+      const next = await window.ghostwriter.updateSettings({
         editorFileTagging: !settings.editorFileTagging,
       });
       setSettings(next);
@@ -69,11 +69,11 @@ export function VibeCodeView() {
   }, [settings]);
 
   const handlePickFiles = useCallback(async () => {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      const added = await window.ghosttype.pickVibeCodeFiles();
+      const added = await window.ghostwriter.pickVibeCodeFiles();
       if (added.length > 0) {
-        const all = await window.ghosttype.getVibeCodeFiles();
+        const all = await window.ghostwriter.getVibeCodeFiles();
         setFiles(all);
       }
     } catch {
@@ -82,9 +82,9 @@ export function VibeCodeView() {
   }, []);
 
   const handleRemoveFile = useCallback(async (id: string) => {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      await window.ghosttype.removeVibeCodeFile(id);
+      await window.ghostwriter.removeVibeCodeFile(id);
       setFiles((prev) => prev.filter((f) => f.id !== id));
     } catch {
       // ignore
@@ -169,7 +169,7 @@ export function VibeCodeView() {
               Active file detection
             </p>
             <p className="mt-0.5 text-xs text-muted">
-              When you ghost in VS Code, Cursor, Windsurf and others,
+              When you ghost in VS Code, Cursor, Windsurf and others, Just
               GhostWriter reads the window title to detect your open file and
               includes its contents automatically.
             </p>

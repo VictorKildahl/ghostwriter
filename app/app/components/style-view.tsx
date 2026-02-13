@@ -3,9 +3,9 @@
 import { cn } from "@/lib/utils";
 import type {
   AppCategory,
-  GhosttypeSettings,
+  GhostwriterSettings,
   WritingStyle,
-} from "@/types/ghosttype";
+} from "@/types/ghostwriter";
 import { useEffect, useState } from "react";
 import { PageLayout } from "./page-layout";
 
@@ -109,24 +109,24 @@ const TABS: TabDef[] = [
 /* ── Component ──────────────────────────────────────────────────────── */
 
 export function StyleView() {
-  const [settings, setSettings] = useState<GhosttypeSettings | null>(null);
+  const [settings, setSettings] = useState<GhostwriterSettings | null>(null);
   const [activeTab, setActiveTab] = useState<AppCategory>("personal");
 
   useEffect(() => {
-    if (!window.ghosttype) return;
-    window.ghosttype
+    if (!window.ghostwriter) return;
+    window.ghostwriter
       .getSettings()
       .then(setSettings)
       .catch(() => undefined);
 
-    const unsub = window.ghosttype.onSettings(setSettings);
+    const unsub = window.ghostwriter.onSettings(setSettings);
     return unsub;
   }, []);
 
   async function selectStyle(category: AppCategory, style: WritingStyle) {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      const next = await window.ghosttype.updateSettings({
+      const next = await window.ghostwriter.updateSettings({
         stylePreferences: { [category]: style },
       });
       setSettings(next);

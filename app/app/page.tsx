@@ -13,21 +13,23 @@ import { SnippetsView } from "@/app/components/snippets-view";
 import { StatsView } from "@/app/components/stats-view";
 import { StyleView } from "@/app/components/style-view";
 import { VibeCodeView } from "@/app/components/vibecode-view";
-import { LoginView } from "@/app/login-view";
 import { SignUpView } from "@/app/signup-view";
 import { useAuth } from "@/app/use-auth";
 import { useGhostStats } from "@/app/use-ghost-stats";
 import { usePreferencesSync } from "@/app/use-preferences-sync";
+import { VerifyEmailView } from "@/app/verify-email-view";
 import { WelcomeView } from "@/app/welcome-view";
 import type { StylePreferences } from "@/types/ghostwriter";
+import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
+import { api } from "../convex/_generated/api";
 
-type AuthView = "welcome" | "login" | "signup";
+type AuthView = "welcome" | "signup";
 
 export default function Page() {
   const [view, setView] = useState<View>("home");
   const [authView, setAuthView] = useState<AuthView>("welcome");
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] =
@@ -43,6 +45,11 @@ export default function Page() {
     logout,
   } = useAuth();
 
+  const completeOnboardingMutation = useMutation(api.users.completeOnboarding);
+  const sendVerificationEmail = useAction(
+    api.emailVerification.sendVerificationEmail,
+  );
+
   const { stats, localTranscripts, deleteTranscript } = useGhostStats(
     auth?.userId ?? null,
   );
@@ -57,14 +64,19 @@ export default function Page() {
     window.ghostwriter.setUserId(auth?.userId ?? null, isAdmin);
   }, [auth?.userId, isAdmin]);
 
-  // Wrap signUp so we show consent prompt after a successful registration
+  // Wrap signUp so we can send verification email after account creation
   const handleSignUp = useCallback(
     async (email: string, password: string, name?: string) => {
       const result = await signUp(email, password, name);
-      setShowOnboarding(true);
+
+      // Fire-and-forget: send verification email
+      sendVerificationEmail({ userId: result.userId }).catch(() => {
+        // Best-effort — user can resend from the verification screen
+      });
+
       return result;
     },
-    [signUp],
+    [signUp, sendVerificationEmail],
   );
 
   // Handle the onboarding completion (consent + style + display)
@@ -83,9 +95,13 @@ export default function Page() {
       } catch {
         // Settings will remain at defaults if IPC fails
       }
-      setShowOnboarding(false);
+
+      // Persist onboarding completion in Convex so it survives app restarts
+      if (auth?.userId) {
+        await completeOnboardingMutation({ userId: auth.userId });
+      }
     },
-    [],
+    [auth?.userId, completeOnboardingMutation],
   );
 
   const openSettings = useCallback((section: SettingsSection = "general") => {
@@ -110,26 +126,38 @@ export default function Page() {
     if (authView === "welcome") {
       return (
         <WelcomeView
-          onSignIn={() => setAuthView("login")}
-          onGetStarted={() => setAuthView("signup")}
+          onContinueWithEmail={(email) => {
+            setAuthEmail(email);
+            setAuthView("signup");
+          }}
         />
       );
     }
-    return authView === "login" ? (
-      <LoginView
-        onLogin={login}
-        onSwitchToSignUp={() => setAuthView("signup")}
-      />
-    ) : (
+    return (
       <SignUpView
+        email={authEmail}
         onSignUp={handleSignUp}
-        onSwitchToLogin={() => setAuthView("login")}
+        onBack={() => setAuthView("welcome")}
       />
     );
   }
 
-  // --------------- Onboarding (after signup) ---------------
-  if (showOnboarding) {
+  // --------------- Email verification ---------------
+  if (auth?.emailVerified !== true) {
+    return (
+      <VerifyEmailView
+        email={auth!.email}
+        userId={auth!.userId}
+        onBack={() => {
+          logout();
+          setAuthView("welcome");
+        }}
+      />
+    );
+  }
+
+  // --------------- Onboarding (not yet completed) ---------------
+  if (auth?.onboardingCompleted !== true) {
     return <OnboardingView onComplete={handleOnboardingComplete} />;
   }
 

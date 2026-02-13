@@ -1,20 +1,24 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { DisplayInfo } from "@/types/ghosttype";
+import type { DisplayInfo } from "@/types/ghostwriter";
 import { Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function OnboardingDisplay({
+  step,
+  totalSteps,
   onChoice,
 }: {
+  step: number;
+  totalSteps: number;
   onChoice: (displayId: number | null) => void;
 }) {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    window.ghosttype
+    window.ghostwriter
       ?.getDisplays()
       .then((d) => {
         setDisplays(d);
@@ -26,8 +30,12 @@ export function OnboardingDisplay({
   }, []);
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
+    <div className="flex h-screen w-screen items-center justify-center bg-[#edf1eb] px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-soft">
+        <p className="mb-4 text-xs font-medium tracking-wide text-muted">
+          Step {step} of {totalSteps}
+        </p>
+
         {/* Header */}
         <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

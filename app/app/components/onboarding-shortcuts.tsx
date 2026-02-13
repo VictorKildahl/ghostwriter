@@ -2,17 +2,21 @@
 
 import { formatShortcut } from "@/lib/ghost-helpers";
 import { cn } from "@/lib/utils";
-import type { GhostingState, GhosttypeSettings } from "@/types/ghosttype";
+import type { GhostingState, GhostwriterSettings } from "@/types/ghostwriter";
 import { useCallback, useEffect, useState } from "react";
 
 type TestPhase = "idle" | "recording" | "transcribing" | "cleaning" | "done";
 
 export function OnboardingShortcuts({
+  step,
+  totalSteps,
   onComplete,
 }: {
+  step: number;
+  totalSteps: number;
   onComplete: () => void;
 }) {
-  const [settings, setSettings] = useState<GhosttypeSettings | null>(null);
+  const [settings, setSettings] = useState<GhostwriterSettings | null>(null);
   const [apiReady, setApiReady] = useState(false);
 
   // Shortcut capture state
@@ -29,18 +33,18 @@ export function OnboardingShortcuts({
   const [hasTestedSuccessfully, setHasTestedSuccessfully] = useState(false);
 
   useEffect(() => {
-    if (!window.ghosttype) {
+    if (!window.ghostwriter) {
       setApiReady(false);
       return;
     }
     setApiReady(true);
 
-    window.ghosttype
+    window.ghostwriter
       .getSettings()
       .then(setSettings)
       .catch(() => undefined);
 
-    const unsubSettings = window.ghosttype.onSettings((next) => {
+    const unsubSettings = window.ghostwriter.onSettings((next) => {
       setSettings(next);
       setShortcutCapture(false);
       setCapturePreview("Press new shortcut…");
@@ -48,12 +52,12 @@ export function OnboardingShortcuts({
       setToggleCapturePreview("Press new shortcut…");
     });
 
-    const unsubPreview = window.ghosttype.onShortcutPreview((preview) => {
+    const unsubPreview = window.ghostwriter.onShortcutPreview((preview) => {
       setCapturePreview(preview);
       setToggleCapturePreview(preview);
     });
 
-    const unsubState = window.ghosttype.onGhostingState((state) => {
+    const unsubState = window.ghostwriter.onGhostingState((state) => {
       handleGhostingState(state);
     });
 
@@ -92,9 +96,9 @@ export function OnboardingShortcuts({
   // ── Shortcut capture ──
 
   async function beginShortcutCapture() {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      await window.ghosttype.startShortcutCapture("shortcut");
+      await window.ghostwriter.startShortcutCapture("shortcut");
       setShortcutCapture(true);
       setCapturePreview("Press new shortcut…");
     } catch {
@@ -103,16 +107,16 @@ export function OnboardingShortcuts({
   }
 
   async function endShortcutCapture() {
-    if (!window.ghosttype) return;
-    await window.ghosttype.stopShortcutCapture();
+    if (!window.ghostwriter) return;
+    await window.ghostwriter.stopShortcutCapture();
     setShortcutCapture(false);
     setCapturePreview("Press new shortcut…");
   }
 
   async function beginToggleShortcutCapture() {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      await window.ghosttype.startShortcutCapture("toggleShortcut");
+      await window.ghostwriter.startShortcutCapture("toggleShortcut");
       setToggleShortcutCapture(true);
       setToggleCapturePreview("Press new shortcut…");
     } catch {
@@ -121,16 +125,16 @@ export function OnboardingShortcuts({
   }
 
   async function endToggleShortcutCapture() {
-    if (!window.ghosttype) return;
-    await window.ghosttype.stopShortcutCapture();
+    if (!window.ghostwriter) return;
+    await window.ghostwriter.stopShortcutCapture();
     setToggleShortcutCapture(false);
     setToggleCapturePreview("Press new shortcut…");
   }
 
   async function clearToggleShortcut() {
-    if (!window.ghosttype) return;
+    if (!window.ghostwriter) return;
     try {
-      const next = await window.ghosttype.updateSettings({
+      const next = await window.ghostwriter.updateSettings({
         toggleShortcut: null,
       });
       setSettings(next);
@@ -148,8 +152,12 @@ export function OnboardingShortcuts({
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-sidebar">
+    <div className="flex h-screen w-screen items-center justify-center bg-[#edf1eb] px-4">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-white p-8 shadow-soft">
+        <p className="mb-4 text-xs font-medium tracking-wide text-muted">
+          Step {step} of {totalSteps}
+        </p>
+
         {/* Header */}
         <div className="mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -171,7 +179,7 @@ export function OnboardingShortcuts({
             </span>
             <div className="mt-1 flex items-center gap-2">
               <input
-                className="ghosttype-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="ghostwriter-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                 style={
                   shortcutCapture
                     ? {
@@ -202,9 +210,9 @@ export function OnboardingShortcuts({
                   type="button"
                   className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-muted transition hover:cursor-pointer hover:bg-border/50 hover:text-ink"
                   onClick={async () => {
-                    if (!window.ghosttype) return;
+                    if (!window.ghostwriter) return;
                     try {
-                      const next = await window.ghosttype.updateSettings({
+                      const next = await window.ghostwriter.updateSettings({
                         shortcut: null,
                       });
                       setSettings(next);
@@ -232,7 +240,7 @@ export function OnboardingShortcuts({
             </span>
             <div className="mt-1 flex items-center gap-2">
               <input
-                className="ghosttype-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="ghostwriter-code flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                 style={
                   toggleShortcutCapture
                     ? {
