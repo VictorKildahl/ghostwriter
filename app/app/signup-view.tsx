@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthShell } from "@/app/components/auth-shell";
+import { Spinner } from "@/app/components/ui/spinner";
 import { useState } from "react";
 
 export function SignUpView({
@@ -112,8 +113,9 @@ export function SignUpView({
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/90 disabled:opacity-50"
+            className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/90 disabled:opacity-50"
           >
+            {loading && <Spinner className="size-4 text-white/70" />}
             {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>

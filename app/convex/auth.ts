@@ -153,6 +153,18 @@ export const login = mutation({
   },
 });
 
+export const checkEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+      .first();
+    return { exists: !!user };
+  },
+});
+
 export const validate = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {

@@ -1,12 +1,15 @@
 "use client";
 
 import { AuthShell } from "@/app/components/auth-shell";
+import { Spinner } from "@/app/components/ui/spinner";
 import { useState } from "react";
 
 export function WelcomeView({
   onContinueWithEmail,
+  loading = false,
 }: {
   onContinueWithEmail: (email: string) => void;
+  loading?: boolean;
 }) {
   const [email, setEmail] = useState("");
 
@@ -71,9 +74,11 @@ export function WelcomeView({
 
           <button
             type="submit"
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/90"
+            disabled={loading}
+            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent/90 disabled:opacity-50"
           >
-            Continue with Email
+            {loading && <Spinner className="size-4 text-white/70" />}
+            {loading ? "Checking…" : "Continue with Email"}
           </button>
         </form>
 

@@ -13,6 +13,7 @@ import { SnippetsView } from "@/app/components/snippets-view";
 import { StatsView } from "@/app/components/stats-view";
 import { StyleView } from "@/app/components/style-view";
 import { VibeCodeView } from "@/app/components/vibecode-view";
+import { LoginView } from "@/app/login-view";
 import { SignUpView } from "@/app/signup-view";
 import { useAuth } from "@/app/use-auth";
 import { useGhostStats } from "@/app/use-ghost-stats";
@@ -20,16 +21,16 @@ import { usePreferencesSync } from "@/app/use-preferences-sync";
 import { VerifyEmailView } from "@/app/verify-email-view";
 import { WelcomeView } from "@/app/welcome-view";
 import type { StylePreferences } from "@/types/ghostwriter";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../convex/_generated/api";
 
-type AuthView = "welcome" | "signup";
-
 export default function Page() {
   const [view, setView] = useState<View>("home");
-  const [authView, setAuthView] = useState<AuthView>("welcome");
   const [authEmail, setAuthEmail] = useState("");
+  const [authStep, setAuthStep] = useState<"welcome" | "login" | "signup">(
+    "welcome",
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] =
@@ -49,6 +50,18 @@ export default function Page() {
   const sendVerificationEmail = useAction(
     api.emailVerification.sendVerificationEmail,
   );
+
+  // Check whether the entered email already has an account
+  const emailCheck = useQuery(
+    api.auth.checkEmail,
+    authEmail ? { email: authEmail } : "skip",
+  );
+
+  // Transition from welcome → login/signup once the email check resolves
+  useEffect(() => {
+    if (!authEmail || emailCheck === undefined) return;
+    setAuthStep(emailCheck.exists ? "login" : "signup");
+  }, [authEmail, emailCheck]);
 
   const { stats, localTranscripts, deleteTranscript } = useGhostStats(
     auth?.userId ?? null,
@@ -123,21 +136,35 @@ export default function Page() {
 
   // --------------- Auth gate ---------------
   if (!isAuthenticated) {
-    if (authView === "welcome") {
+    const resetToWelcome = () => {
+      setAuthEmail("");
+      setAuthStep("welcome");
+    };
+
+    if (authStep === "welcome") {
       return (
         <WelcomeView
+          loading={!!authEmail && emailCheck === undefined}
           onContinueWithEmail={(email) => {
             setAuthEmail(email);
-            setAuthView("signup");
           }}
         />
       );
     }
+
+    // Account exists — show login (password only)
+    if (authStep === "login") {
+      return (
+        <LoginView email={authEmail} onLogin={login} onBack={resetToWelcome} />
+      );
+    }
+
+    // New email — show sign up
     return (
       <SignUpView
         email={authEmail}
         onSignUp={handleSignUp}
-        onBack={() => setAuthView("welcome")}
+        onBack={resetToWelcome}
       />
     );
   }
@@ -150,7 +177,8 @@ export default function Page() {
         userId={auth!.userId}
         onBack={() => {
           logout();
-          setAuthView("welcome");
+          setAuthEmail("");
+          setAuthStep("welcome");
         }}
       />
     );
